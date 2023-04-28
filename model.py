@@ -38,8 +38,10 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
                 input_ids=None,
                 attention_mask=None,
                 inputs_embeds=None,
+                session_ids=None,
                 return_dict=True,
                 **kwargs):
+        del session_ids  # unused
         if input_ids is not None:
             seq_len = input_ids.shape[1]
         elif inputs_embeds is not None:

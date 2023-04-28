@@ -72,16 +72,26 @@ class RMTTrainer(Trainer):
         if prediction_loss_only:
             return loss
         # loss, logit, label
-        return (loss, logits, labels)
+        # NOTE: quick hack to include session id in compute_metric: add it into labels.
+        session_ids = inputs['session_ids']  # [B, 1]
+        return (loss, logits, torch.cat([labels, session_ids], dim=1))
 
 
-# TODO Session level eval
 def compute_metrics(eval_preds):
     """Compute token accuracy of greedy decoding"""
     logits = torch.tensor(eval_preds.predictions)
     labels = torch.LongTensor(eval_preds.label_ids)
+    session_ids = labels[:, -1]  # [N,]  NOTE see prediction_step for explanation
+    labels = labels[:, :-1]
 
-    loss = F.cross_entropy(logits.permute(0, 2, 1), labels)
-    ppl = torch.exp(loss)
+    loss = F.cross_entropy(logits.permute(0, 2, 1), labels, reduction='none')  # [N, T]
+    loss = loss.mean(-1)  # [N,]
 
-    return {'perplexity': ppl}
+    session_ppl = {}
+    for i in torch.unique(session_ids):
+        session_ppl[f'session-{i}-ppl'] = torch.exp(loss[session_ids == i].mean())
+
+    total_ppl = torch.exp(loss.mean())
+    session_ppl['all-ppl'] = total_ppl
+
+    return session_ppl

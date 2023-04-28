@@ -29,7 +29,7 @@ class MscDataset(Dataset):
         # self.identity = 'Speaker 2'  # TODO
 
         self.data, self.data_stats = self.load_data(data_path)
-        self.histories, self.queries, self.responses = self.format_data()
+        self.histories, self.queries, self.responses, self.session_ids = self.format_data()
 
         self.memory_tokens = self.tokenizer.encode(' '.join(
             [MEM_TOKEN.format(i) for i in range(memory_length)]))[:-1]
@@ -70,8 +70,9 @@ class MscDataset(Dataset):
         histories = []
         queries = []
         responses = []
+        session_ids = []
         for chat in tqdm(self.data, desc='format data'):
-            for session in chat[:self.max_session]:
+            for sess_id, session in enumerate(chat[:self.max_session]):
                 curr_seqlen = 0
                 sequence = []
                 for dialog in session:
@@ -88,6 +89,7 @@ class MscDataset(Dataset):
                         histories.append(history)
                         queries.append(query)
                         responses.append(response[:self.tokenizer.model_max_length - 1])
+                        session_ids.append(sess_id)
 
                         # encoded text as next
                         if history is not None:
@@ -98,7 +100,7 @@ class MscDataset(Dataset):
                             sequence = [query, response]
                         curr_seqlen = curr_seqlen - len(oldest) + len(query) + len(response)
 
-        return histories, queries, responses
+        return histories, queries, responses, session_ids
 
     def __len__(self):
         return len(self.queries)
@@ -107,6 +109,7 @@ class MscDataset(Dataset):
         history = self.histories[idx]
         query = self.queries[idx]
         response = self.responses[idx]
+        sess_ids = self.session_ids[idx]
         if history is None:
             input_ids = query
         else:
@@ -122,4 +125,4 @@ class MscDataset(Dataset):
         input_ids = input_ids + [self.tokenizer.eos_token_id]
         labels = response + [self.tokenizer.eos_token_id]
 
-        return dict(input_ids=input_ids, labels=labels)
+        return dict(input_ids=input_ids, labels=labels, session_ids=[sess_ids])
