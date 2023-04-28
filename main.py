@@ -38,6 +38,8 @@ class ExperimentArgs:
 
     test_only: bool = False
 
+    load_checkpoint: str = field(default=None)
+
 
 def main():
     torch.backends.cuda.matmul.allow_tf32 = True  # allows tf32, only on Ampere GPUs
@@ -72,6 +74,8 @@ def main():
                                                      device_map=device_map)
     prepare_rmt_model(model, tokenizer, rmt_train_args.memory_length,
                       rmt_train_args.memory_position, rmt_train_args.write_memory_position)
+    if args.load_checkpoint:
+        model.load_state_dict(torch.load(args.load_checkpoint))
 
     if args.use_lora:
         from peft import (get_peft_model, get_peft_model_state_dict, LoraConfig, TaskType,
