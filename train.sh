@@ -18,9 +18,9 @@ CUDA_VISIBLE_DEVICES=$ids python main.py \
     --save_steps 1000 \
     --save_total_limit 3 \
     --load_best_model_at_end True \
-    --per_device_train_batch_size 2 \
-    --per_device_eval_batch_size 2 \
-    --gradient_accumulation_steps 32 \
+    --per_device_train_batch_size 32 \
+    --per_device_eval_batch_size 32 \
+    --gradient_accumulation_steps 1 \
     --gradient_checkpointing False \
     --num_segments 2 \
     --memory_length 10 \
