@@ -29,6 +29,7 @@ class RMTTrainingArgs(TrainingArguments):
     dataloader_num_workers: int = 0  # TODO
     gradient_accumulation_steps: int = 1
     gradient_checkpointing: bool = False
+    remove_unused_columns: bool = False  # keep to False
     ################################# RMT ARGS #################################
     memory_length: int = 10
     num_segments: int = 1

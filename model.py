@@ -1,7 +1,7 @@
 import math
 
 import torch
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM, BlenderbotForConditionalGeneration
 
 ENCODER_DECODER_ARCH_NAMES = ['t5', 't0', 'bart', 'blenderbot']
 MEM_TOKEN = '[mem_{}]'
@@ -32,8 +32,8 @@ def prepare_rmt_model(model, tokenizer, memory_length, memory_position, write_me
     model.config.write_memory_position = write_memory_position if write_memory_position else memory_position
 
 
-class RMTForCausalLM(AutoModelForCausalLM):
-
+class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
+    # TODO: make it AutoModel-based later. Now, just override BlenderBot
     def forward(self,
                 input_ids=None,
                 attention_mask=None,
@@ -52,20 +52,40 @@ class RMTForCausalLM(AutoModelForCausalLM):
         if seq_len > self.config.max_position_embeddings:
             if input_ids is not None:
                 input_ids, memory_tensor = self.split_memory(input_ids=input_ids)
-                input_segments = torch.split(input_ids, seq_len - self.config.memory_length, dim=1)
+                input_segments = torch.split(input_ids,
+                                             self.config.max_position_embeddings -
+                                             self.config.memory_length,
+                                             dim=1)
             else:  # inputs_embeds
                 inputs_embeds, memory_tensor = self.split_memory(inputs_embeds=inputs_embeds)
                 input_segments = torch.split(inputs_embeds,
-                                             seq_len - self.config.memory_length,
+                                             self.config.max_position_embeddings -
+                                             self.config.memory_length,
                                              dim=1)
+            if attention_mask is not None:
+                attention_mask, memory_mask = self.split_memory(input_ids=attention_mask)
+                attention_mask_segments = torch.split(attention_mask,
+                                                     self.config.max_position_embeddings -
+                                                     self.config.memory_length,
+                                                     dim=1)
             prev_memory = None
-            for _, segment in enumerate(input_segments):
+            for i, segment in enumerate(input_segments):
                 # for each segment, recurrently pass encoder
+                if attention_mask is not None:
+                    attention_mask_seg = attention_mask_segments[i]
+                    if self.config.memory_position == 'left':
+                        attention_mask_seg = torch.cat([memory_mask, attention_mask_seg], dim=1)
+                    elif self.config.memory_position == 'right':
+                        attention_mask_seg = torch.cat([attention_mask_seg, memory_mask], dim=1)
+                    else:
+                        attention_mask_seg = torch.cat([memory_mask[0], attention_mask_seg, memory_mask[1]], dim=1)
+                else:
+                    attention_mask_seg = None
                 segment_embeds, memory_embeds = self.append_memory(segment,
                                                                    memory_tensor,
                                                                    prev_memory=prev_memory)
                 encoder_outputs = self.get_encoder()(inputs_embeds=segment_embeds,
-                                                     attention_mask=attention_mask,
+                                                     attention_mask=attention_mask_seg,
                                                      return_dict=True,
                                                      output_hidden_states=True)
                 last_hidden_state = encoder_outputs.last_hidden_state  # [B, T, E]
@@ -78,7 +98,7 @@ class RMTForCausalLM(AutoModelForCausalLM):
 
             return super().forward(encoder_outputs=encoder_outputs,
                                    inputs_embeds=segment_embeds,
-                                   attention_mask=attention_mask,
+                                   attention_mask=attention_mask_seg,
                                    return_dict=True,
                                    **kwargs)
 
@@ -113,17 +133,17 @@ class RMTForCausalLM(AutoModelForCausalLM):
         return _split_mem_tensor(inputs_embeds, memory_position, self.config.memory_length)
 
     def append_memory(self, input_tensor, memory_tensor, prev_memory=None):
-        if isinstance(input_tensor, torch.LongTensor):
+        if input_tensor.dtype == torch.long:
             inputs_embeds = self.get_input_embeddings()(input_tensor)
         else:
             inputs_embeds = input_tensor
         if isinstance(memory_tensor, tuple):
-            if isinstance(memory_tensor[0], torch.LongTensor):
+            if memory_tensor[0].dtype == torch.long:
                 memory_embeds = (self.get_input_embeddings()(mem) for mem in memory_tensor)
             else:
                 memory_embeds = memory_tensor
         else:
-            if isinstance(memory_tensor, torch.LongTensor):
+            if memory_tensor.dtype == torch.long:
                 memory_embeds = self.get_input_embeddings()(memory_tensor)
             else:
                 memory_embeds = memory_tensor
@@ -138,7 +158,7 @@ class RMTForCausalLM(AutoModelForCausalLM):
         return inputs_embeds, memory_embeds
 
 
-class RMTForSeq2SeqLM(AutoModelForSeq2SeqLM):
+class RMTForCausalLM(AutoModelForCausalLM):
     """Not implemented"""
 
     def forward(self, input_ids=None, attention_mask=None, **kwargs):

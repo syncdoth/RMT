@@ -31,8 +31,8 @@ class MscDataset(Dataset):
         self.data, self.data_stats = self.load_data(data_path)
         self.histories, self.queries, self.responses = self.format_data()
 
-        self.memory_tokens = self.tokenizer.encode(
-            ' '.join([MEM_TOKEN.format(i) for i in range(memory_length)]))[:-1]
+        self.memory_tokens = self.tokenizer.encode(' '.join(
+            [MEM_TOKEN.format(i) for i in range(memory_length)]))[:-1]
 
     def load_data(self, path):
         # columns: ['personas', 'dialog', 'metadata', 'previous_dialogs', 'init_personas']
