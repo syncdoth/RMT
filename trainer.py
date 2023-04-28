@@ -61,6 +61,7 @@ class RMTTrainer(Trainer):
         prediction_loss_only: bool,
         ignore_keys: Optional[List[str]] = None,
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
+        inputs = self._prepare_inputs(inputs)
         model.eval()
         with torch.no_grad():
             logits = model(**inputs).logits
