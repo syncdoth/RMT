@@ -36,6 +36,8 @@ class ExperimentArgs:
     valid_max_session: int = 1
     test_max_session: int = 1
 
+    test_only: bool = False
+
 
 def main():
     torch.backends.cuda.matmul.allow_tf32 = True  # allows tf32, only on Ampere GPUs
@@ -89,22 +91,27 @@ def main():
         model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
         rmt_train_args.gradient_checkpointing = False  # incompatible with lora
 
-    train_dataset = MscDataset(
-        tokenizer,
-        args.train_data_path,
-        max_length=(model.config.max_position_embeddings - rmt_train_args.memory_length) *
-        rmt_train_args.num_segments,
-        memory_length=rmt_train_args.memory_length,
-        memory_position=rmt_train_args.memory_position,
-        max_session=args.train_max_session,
-        mode='train',
-    )
+    max_input_seq_len = (model.config.max_position_embeddings -
+                         rmt_train_args.memory_length) * rmt_train_args.num_segments
+
+    if not args.test_only:
+        train_dataset = MscDataset(
+            tokenizer,
+            args.train_data_path,
+            max_length=max_input_seq_len,
+            memory_length=rmt_train_args.memory_length,
+            memory_position=rmt_train_args.memory_position,
+            max_session=args.train_max_session,
+            mode='train',
+        )
+    else:
+        train_dataset = None
+
     if rmt_train_args.evaluation_strategy != 'no':
         valid_dataset = MscDataset(
             tokenizer,
             args.validation_data_path,
-            max_length=(model.config.max_position_embeddings - rmt_train_args.memory_length) *
-            rmt_train_args.num_segments,
+            max_length=max_input_seq_len,
             memory_length=rmt_train_args.memory_length,
             memory_position=rmt_train_args.memory_position,
             max_session=args.valid_max_session,
@@ -117,8 +124,7 @@ def main():
     test_dataset = MscDataset(
         tokenizer,
         args.test_data_path,
-        max_length=(model.config.max_position_embeddings - rmt_train_args.memory_length) *
-        rmt_train_args.num_segments,
+        max_length=max_input_seq_len,
         memory_length=rmt_train_args.memory_length,
         memory_position=rmt_train_args.memory_position,
         max_session=args.test_max_session,
@@ -144,8 +150,9 @@ def main():
             lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())).__get__(
                 model, type(model))
 
-    trainer.train()
-    model.save_pretrained(f"{rmt_train_args.output_dir}/{args.wandb_run_name}")
+    if not args.test_only:
+        trainer.train()
+        model.save_pretrained(f"{rmt_train_args.output_dir}/{args.wandb_run_name}")
     trainer.evaluate(test_dataset, metric_key_prefix="test")
     wandb.finish()
 
