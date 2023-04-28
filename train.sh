@@ -9,7 +9,7 @@ CUDA_VISIBLE_DEVICES=$ids python main.py \
     --warmup_steps 0 \
     --weight_decay 0 \
     --eval_steps 100 \
-    --max_steps -1 \
+    --max_steps 1000 \
     --num_train_epochs 5 \
     --report_to 'wandb' \
     --output_dir 'outputs' \
