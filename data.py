@@ -107,7 +107,10 @@ class MscDataset(Dataset):
         history = self.histories[idx]
         query = self.queries[idx]
         response = self.responses[idx]
-        input_ids = list(chain.from_iterable(history)) + query
+        if history is None:
+            input_ids = query
+        else:
+            input_ids = list(chain.from_iterable(history)) + query
         # add memory tokens
         if self.memory_position == 'left':
             input_ids = self.memory_tokens + input_ids
@@ -116,7 +119,7 @@ class MscDataset(Dataset):
         else:
             half = self.memory_length // 2
             input_ids = self.memory_tokens[:half] + input_ids + self.memory_tokens[half:]
-        input_ids = torch.LongTensor([input_ids + [self.tokenizer.eos_token_id]])
-        labels = torch.LongTensor([response + [self.tokenizer.eos_token_id]])
+        input_ids = input_ids + [self.tokenizer.eos_token_id]
+        labels = response + [self.tokenizer.eos_token_id]
 
         return dict(input_ids=input_ids, labels=labels)
