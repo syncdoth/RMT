@@ -26,7 +26,7 @@ class MscDataset(Dataset):
         self.memory_position = memory_position
         self.max_session = max_session
         self.mode = mode  # [train, eval]
-        # self.identity = 'Speaker 2'
+        # self.identity = 'Speaker 2'  # TODO
 
         self.data, self.data_stats = self.load_data(data_path)
         self.histories, self.queries, self.responses = self.format_data()
@@ -80,14 +80,14 @@ class MscDataset(Dataset):
                         sequence.append(encoded)
                         curr_seqlen += len(encoded)
                     else:
-                        history = sequence[:-2]
-                        query = sequence[-2]
-                        response = sequence[-1]
+                        history = sequence[:-1]
+                        query = sequence[-1]
+                        response = encoded
                         if not history:
                             history = None
                         histories.append(history)
                         queries.append(query)
-                        responses.append(response)
+                        responses.append(response[:self.tokenizer.model_max_length - 1])
 
                         # encoded text as next
                         if history is not None:

@@ -75,10 +75,13 @@ class RMTTrainer(Trainer):
         return (loss, logits, labels)
 
 
+# TODO Session level eval
 def compute_metrics(eval_preds):
     """Compute token accuracy of greedy decoding"""
-    pred = np.argmax(eval_preds.predictions, axis=-1)
-    num_correct = (pred == eval_preds.label_ids).sum()
-    num_predict = pred.size
+    logits = torch.tensor(eval_preds.predictions)
+    labels = torch.LongTensor(eval_preds.label_ids)
 
-    return {'accuracy': num_correct / num_predict}
+    loss = F.cross_entropy(logits.permute(0, 2, 1), labels)
+    ppl = torch.exp(loss)
+
+    return {'perplexity': ppl}

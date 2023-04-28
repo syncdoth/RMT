@@ -1,10 +1,10 @@
 ids=$1
-GPU_PER_NODE=$2
+# GPU_PER_NODE=$2
 
 # CUDA_VISIBLE_DEVICES=$ids WORLD_SIZE=$GPU_PER_NODE torchrun --nproc_per_node $GPU_PER_NODE \
 CUDA_VISIBLE_DEVICES=$ids python main.py \
     --model_name 'facebook/blenderbot-400M-distill' \
-    --wandb_run_name 'blenderbot-RMT' \
+    --wandb_run_name 'blenderbot-RMT-seg3-train_session4-test_session5' \
     --learning_rate 2e-5 \
     --warmup_steps 0 \
     --weight_decay 0 \
@@ -18,11 +18,14 @@ CUDA_VISIBLE_DEVICES=$ids python main.py \
     --save_steps 1000 \
     --save_total_limit 3 \
     --load_best_model_at_end True \
-    --per_device_train_batch_size 32 \
-    --per_device_eval_batch_size 32 \
+    --per_device_train_batch_size 64 \
+    --per_device_eval_batch_size 64 \
     --gradient_accumulation_steps 1 \
     --gradient_checkpointing False \
-    --num_segments 2 \
+    --num_segments 3 \
+    --train_max_session 4 \
+    --valid_max_session 5 \
+    --test_max_session 5 \
     --memory_length 10 \
     --memory_position left --write_memory_position right
 
