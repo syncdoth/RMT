@@ -1,7 +1,12 @@
+"""
+Our RMT is an encoder-decoder model based on BlenderBot.
+"""
 import math
 
 import torch
 from transformers import AutoTokenizer, BlenderbotForConditionalGeneration
+from transformers.models.blenderbot.configuration_blenderbot import BlenderbotConfig
+from transformers.models.blenderbot.modeling_blenderbot import BlenderbotAttention
 
 ENCODER_DECODER_ARCH_NAMES = ['t5', 't0', 'bart', 'blenderbot']
 MEM_TOKEN = '[mem_{}]'
@@ -19,21 +24,35 @@ def load_transformer_LM_tokenizer(model_name_or_path, tokenizer_name_or_path=Non
         # # open-ended generation
         # tokenizer.pad_token = tokenizer.eos_token
         # model.config.pad_token_id = model.config.eos_token_id
+    memory_length = kwargs.get('memory_length', None)
+    if memory_length is not None:
+        tokenizer.add_special_tokens(
+            {'additional_special_tokens': [MEM_TOKEN.format(i) for i in range(memory_length)]})
+        model.resize_token_embeddings(len(tokenizer))
+        model.config.memory_length = memory_length
 
     return model, tokenizer
 
 
-def prepare_rmt_model(model, tokenizer, memory_length, memory_position, write_memory_position=None):
-    tokenizer.add_special_tokens(
-        {'additional_special_tokens': [MEM_TOKEN.format(i) for i in range(memory_length)]})
-    model.resize_token_embeddings(len(tokenizer))
-    model.config.memory_length = memory_length
-    model.config.memory_position = memory_position
-    model.config.write_memory_position = write_memory_position if write_memory_position else memory_position
-
-
 class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
     # TODO: make it AutoModel-based later. Now, just override BlenderBot
+    def __init__(self,
+                 config: BlenderbotConfig,
+                 memory_length=10,
+                 memory_position='left',
+                 write_memory_position='right',
+                 memory_gate_type='none'):
+        super().__init__(config)
+        self.config.memory_length = memory_length
+        self.config.memory_position = memory_position
+        self.config.write_memory_position = write_memory_position
+        self.config.memory_gate_type = memory_gate_type
+
+        if self.config.memory_gate_type == 'attention':
+            self.memory_attention = BlenderbotAttention(embed_dim=config.d_model,
+                                                        num_heads=config.encoder_attention_heads,
+                                                        dropout=config.attention_dropout)
+
     def forward(self,
                 input_ids=None,
                 attention_mask=None,
@@ -147,5 +166,20 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
         return input_tensor
 
     def memory_gate(self, memory_embeds, prev_memory):
-        # TODO: try different ideas
-        return memory_embeds
+        if self.config.memory_gate_type == 'none':
+            return memory_embeds
+
+        if self.config.memory_gate_type == 'residual':
+            return memory_embeds + prev_memory
+
+        if self.config.memory_gate_type == 'attention':
+            # prev_memory  [B, T, E]
+            # memory_embeds  [B, T, E]
+            memory, _, _ = self.memory_attention(
+                hidden_states=memory_embeds,
+                key_value_states=prev_memory,
+            )
+            return memory
+
+        if self.config.memory_gate_type == 'zero_conv':
+            raise NotImplementedError

@@ -43,6 +43,13 @@ class RMTTrainingArgs(TrainingArguments):
                                            "help": "where the memory tokens to be placed.",
                                            "choices": ['left', 'right', 'split']
                                        })
+    memory_gate_type: str = field(
+        default='none',
+        metadata={
+            "help":
+                "how to connect memory of different segments. Defaults to None (no connection).",
+            "choices": ['none', 'residual', 'zero_conv', 'attention']
+        })
 
 
 class RMTTrainer(Trainer):

@@ -8,7 +8,7 @@ import torch
 
 from data import MscDataset
 from trainer import RMTTrainer, RMTTrainingArgs, compute_metrics
-from model import load_transformer_LM_tokenizer, prepare_rmt_model
+from model import load_transformer_LM_tokenizer
 
 
 @dataclass
@@ -68,12 +68,17 @@ def main():
             },
         )
 
-    model, tokenizer = load_transformer_LM_tokenizer(args.model_name,
-                                                     tokenizer_name_or_path=args.tokenizer_name,
-                                                     load_in_8bit=args.train_8bit,
-                                                     device_map=device_map)
-    prepare_rmt_model(model, tokenizer, rmt_train_args.memory_length,
-                      rmt_train_args.memory_position, rmt_train_args.write_memory_position)
+    model, tokenizer = load_transformer_LM_tokenizer(
+        args.model_name,
+        tokenizer_name_or_path=args.tokenizer_name,
+        memory_length=rmt_train_args.memory_length,
+        memory_position=rmt_train_args.memory_position,
+        write_memory_position=rmt_train_args.write_memory_position,
+        memory_gate_type=rmt_train_args.memory_gate_type,
+        load_in_8bit=args.train_8bit,
+        device_map=device_map,
+    )
+
     if args.load_checkpoint:
         model.load_state_dict(torch.load(args.load_checkpoint))
 
