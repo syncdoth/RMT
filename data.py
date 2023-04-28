@@ -20,9 +20,6 @@ class MscDataset(Dataset):
         max_session=1,
         mode='train',
     ):
-        self.data, self.data_stats = self.load_data(data_path)
-        self.histories, self.queries, self.responses = self.format_data()
-
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.memory_length = memory_length
@@ -31,8 +28,11 @@ class MscDataset(Dataset):
         self.mode = mode  # [train, eval]
         # self.identity = 'Speaker 2'
 
+        self.data, self.data_stats = self.load_data(data_path)
+        self.histories, self.queries, self.responses = self.format_data()
+
         self.memory_tokens = self.tokenizer.encode(
-            [MEM_TOKEN.format(i) for i in range(memory_length)])
+            ' '.join([MEM_TOKEN.format(i) for i in range(memory_length)]))[:-1]
 
     def load_data(self, path):
         # columns: ['personas', 'dialog', 'metadata', 'previous_dialogs', 'init_personas']
@@ -76,20 +76,26 @@ class MscDataset(Dataset):
                 sequence = []
                 for dialog in session:
                     encoded = self.tokenizer.encode(dialog)[:-1]  # skip eos
-                    if curr_seqlen + len(encoded) + 1 < self.max_length:
+                    if curr_seqlen + len(encoded) + 1 <= self.max_length:
                         sequence.append(encoded)
                         curr_seqlen += len(encoded)
                     else:
                         history = sequence[:-2]
                         query = sequence[-2]
                         response = sequence[-1]
+                        if not history:
+                            history = None
                         histories.append(history)
                         queries.append(query)
                         responses.append(response)
 
                         # encoded text as next
-                        oldest = history.pop(0)
-                        sequence = history + [query, response]
+                        if history is not None:
+                            oldest = history.pop(0)
+                            sequence = history + [query, response]
+                        else:
+                            oldest = []
+                            sequence = [query, response]
                         curr_seqlen = curr_seqlen - len(oldest) + len(query) + len(response)
 
         return histories, queries, responses

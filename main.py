@@ -21,12 +21,12 @@ class ExperimentArgs:
     wandb_run_name: str = 'RMT-default-params'
     # peft
     use_lora: bool = field(
-        default=True,
+        default=False,
         metadata={"help": "use lora with huggingface peft. You must install loralib and peft."})
     lora_r: int = 8
     lora_alpha: int = 32
     lora_dropout: float = 0.1
-    train_8bit: bool = True
+    train_8bit: bool = False
     # data
     train_data_path: str = 'msc/session_4/train.txt'
     validation_data_path: str = 'msc/session_5/valid.txt'
@@ -44,14 +44,15 @@ def main():
 
     if rmt_train_args.deepspeed and args.train_8bit:
         raise ValueError("--train_8bit is not compatible with deepspeed.")
-    if not args.train_8bit:
-        device_map = None
     if int(os.environ.get("WORLD_SIZE", 1)) != 1:
         device_map = {"": rmt_train_args.local_rank}
         if args.train_8bit:
             rmt_train_args.ddp_find_unused_parameters = False  # integral for train_8bit
     else:
-        device_map = 'auto'
+        if args.train_8bit:
+            device_map = 'auto'
+        else:
+            device_map = None
 
     if rmt_train_args.local_rank == 0:
         wandb.init(

@@ -1,7 +1,8 @@
 ids=$1
+GPU_PER_NODE=$2
 
-WORLD_SIZE=$GPU_PER_NODE torchrun --nproc_per_node $GPU_PER_NODE \
-    main.py \
+# CUDA_VISIBLE_DEVICES=$ids WORLD_SIZE=$GPU_PER_NODE torchrun --nproc_per_node $GPU_PER_NODE \
+CUDA_VISIBLE_DEVICES=$ids python main.py \
     --model_name 'facebook/blenderbot-400M-distill' \
     --wandb_run_name 'blenderbot-RMT' \
     --learning_rate 2e-5 \

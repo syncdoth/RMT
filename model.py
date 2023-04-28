@@ -4,7 +4,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
 
 ENCODER_DECODER_ARCH_NAMES = ['t5', 't0', 'bart', 'blenderbot']
-MEM_TOKEN = '[mem_{i}]'
+MEM_TOKEN = '[mem_{}]'
 
 
 def load_transformer_LM_tokenizer(model_name_or_path, tokenizer_name_or_path=None, **kwargs):
