@@ -76,27 +76,27 @@ class RMTTrainer(Trainer):
             labels = inputs['labels']
             # [B, T]
             loss = F.cross_entropy(logits.permute(0, 2, 1), labels, reduction='none')
-            loss = loss.mean()
+            eval_loss = loss.mean()
         if prediction_loss_only:
-            return loss
+            return eval_loss
         # loss, logit, label
         # NOTE: quick hack to include session id in compute_metric: add it into labels.
         session_ids = inputs['session_ids']  # [B, 1]
-        return (loss, logits, torch.cat([labels, session_ids], dim=1))
+        labels_session_ids = torch.cat([labels, session_ids], dim=1)
+        # NOTE: for efficiency, compute ppl here!
+        label_mask = labels != -100  # TODO -100 is pad idx by default;
+        true_loss = loss.sum(-1) / label_mask.sum(-1)  # [B,]
+        return (eval_loss, true_loss, labels_session_ids)
 
 
 def compute_metrics(eval_preds):
-    """Compute token accuracy of greedy decoding"""
-    logits = torch.tensor(eval_preds.predictions)
+    """Compute perplexity"""
+    # NOTE: see prediction_step; predictions is actually "true loss" (loss concerning real seqlen)
+    # This can be directly used for ppl computation
+    loss = torch.tensor(eval_preds.predictions)  # [N,]
     labels = torch.LongTensor(eval_preds.label_ids)
     session_ids = labels[:, -1]  # [N,]  NOTE see prediction_step for explanation
     labels = labels[:, :-1]
-
-    # TODO -100 is pad idx by default;
-    attention_mask = labels != -100
-
-    loss = F.cross_entropy(logits.permute(0, 2, 1), labels, reduction='none')  # [N, T]
-    loss = loss.sum(-1) / attention_mask.sum(-1)  # [N,]
 
     session_ppl = {}
     for i in torch.unique(session_ids):

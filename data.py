@@ -1,6 +1,5 @@
 from itertools import chain
 
-import torch
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 import pandas as pd
@@ -108,17 +107,23 @@ class MscDataset(Dataset):
             input_ids = list(chain.from_iterable(history)) + query
             if self.mode == 'train':
                 # for training, constraint input seq len to
-                # (model's max_seq_len - memory_len) * num_segments
-                input_ids = input_ids[-self.max_length:]
+                # (model's max_seq_len - memory_len) * num_segments (-1 to add eos later)
+                input_ids = input_ids[-(self.max_length - 1):]
+            elif self.mode == 'baseline':
+                # for baseline, constrain input seq len to
+                # model's max_seq_len (-1 to add eos later)
+                input_ids = input_ids[-(self.tokenizer.model_max_length - 1):]
 
-        # add memory tokens
-        if self.memory_position == 'left':
-            input_ids = self.memory_tokens + input_ids
-        elif self.memory_position == 'right':
-            input_ids = input_ids + self.memory_tokens
-        else:
-            half = self.memory_length // 2
-            input_ids = self.memory_tokens[:half] + input_ids + self.memory_tokens[half:]
+        if self.mode != 'baseline':
+            # add memory tokens
+            if self.memory_position == 'left':
+                input_ids = self.memory_tokens + input_ids
+            elif self.memory_position == 'right':
+                input_ids = input_ids + self.memory_tokens
+            else:
+                half = self.memory_length // 2
+                input_ids = self.memory_tokens[:half] + input_ids + self.memory_tokens[half:]
+
         input_ids = input_ids + [self.tokenizer.eos_token_id]
         labels = response + [self.tokenizer.eos_token_id]
 

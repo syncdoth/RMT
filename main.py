@@ -37,6 +37,7 @@ class ExperimentArgs:
     test_max_session: int = 1
 
     test_only: bool = False
+    load_baseline: bool = False
 
     load_checkpoint: str = field(default=None)
 
@@ -115,6 +116,7 @@ def main():
             mode='train',
         )
     else:
+        rmt_train_args.evaluation_strategy = 'no'  # skip loading validation set
         train_dataset = None
 
     if rmt_train_args.evaluation_strategy != 'no':
@@ -138,7 +140,7 @@ def main():
         memory_length=rmt_train_args.memory_length,
         memory_position=rmt_train_args.memory_position,
         max_session=args.test_max_session,
-        mode='eval',
+        mode='eval' if not args.load_baseline else 'baseline',
     )
 
     ################################################################
