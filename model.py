@@ -107,10 +107,10 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
                                                  return_dict=True,
                                                  output_hidden_states=True)
             last_hidden_state = encoder_outputs.last_hidden_state  # [B, T, E]
-            _, memory_embeds = self.split_memory(last_hidden_state,
-                                                 self.config.write_memory_position,
-                                                 self.config.memory_length)
-            memory_tensor = memory_embeds
+            _, new_memory_embeds = self.split_memory(last_hidden_state,
+                                                     self.config.write_memory_position,
+                                                     self.config.memory_length)
+            memory_tensor = new_memory_embeds
             prev_memory = memory_embeds
             # TODO: use .detach() here well for Truncated BPTT.
 
