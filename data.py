@@ -29,8 +29,10 @@ class MscDataset(Dataset):
         # self.identity = 'Speaker 2'  # TODO
 
         self.data, self.data_stats = self.load_data(data_path)
-        self.histories, self.queries, self.responses, self.session_ids = self.format_data()
-
+        if self.mode == "train":
+            self.histories, self.queries, self.responses, self.session_ids = self.format_train_data()
+        else:
+            self.histories, self.queries, self.responses, self.session_ids = self.format_eval_data()
         self.memory_tokens = self.tokenizer.encode(' '.join(
             [MEM_TOKEN.format(i) for i in range(memory_length)]))[:-1]
 
@@ -66,16 +68,55 @@ class MscDataset(Dataset):
                           num_dialogs_per_session=num_dialogs_per_session)
         return chats, data_stats
 
-    def format_data(self):
+    def format_train_data(self):
         histories = []
         queries = []
         responses = []
         session_ids = []
         for chat in tqdm(self.data, desc='format data'):
+            # TODO: sequence per chat, not session
             for sess_id, session in enumerate(chat[:self.max_session]):
                 curr_seqlen = 0
                 sequence = []
                 for dialog in session:
+                    encoded = self.tokenizer.encode(dialog)[:-1]  # skip eos
+                    if curr_seqlen + len(encoded) + 1 <= self.max_length:
+                        sequence.append(encoded)
+                        curr_seqlen += len(encoded)
+                    else:
+                        history = sequence[:-1]
+                        query = sequence[-1]
+                        response = encoded
+                        if not history:
+                            history = None
+                        histories.append(history)
+                        queries.append(query)
+                        responses.append(response[:self.tokenizer.model_max_length - 1])
+                        session_ids.append(sess_id)
+
+                        # encoded text as next
+                        if history is not None:
+                            oldest = history.pop(0)
+                            sequence = history + [query, response]
+                        else:
+                            oldest = []
+                            sequence = [query, response]
+                        curr_seqlen = curr_seqlen - len(oldest) + len(query) + len(response)
+
+        return histories, queries, responses, session_ids
+
+    def format_eval_data(self):
+        histories = []
+        queries = []
+        responses = []
+        session_ids = []
+        for chat in tqdm(self.data, desc='format data'):
+            #TODO: split by chat
+            for sess_id, session in enumerate(chat[:self.max_session]):
+                curr_seqlen = 0
+                sequence = []
+                for dialog in session:
+                    # TODO: just all sentence (not by length)
                     encoded = self.tokenizer.encode(dialog)[:-1]  # skip eos
                     if curr_seqlen + len(encoded) + 1 <= self.max_length:
                         sequence.append(encoded)
