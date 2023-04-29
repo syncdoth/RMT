@@ -116,7 +116,7 @@ def main():
               f"This leads to {eval_max_input_seq_len - 1} tokens in encoder input.")
     else:
         print("During eval, entire sequence (history + query) will be used, no matter how long.")
-        eval_max_input_seq_len - 1
+        eval_max_input_seq_len = -1
 
     if not args.test_only:
         train_dataset = MscDataset(
