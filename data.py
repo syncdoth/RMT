@@ -13,7 +13,7 @@ class MscDataset(Dataset):
         self,
         tokenizer,
         data_path,
-        max_length=128,
+        max_length=-1,
         memory_length=8,
         memory_position='left',
         max_session=1,

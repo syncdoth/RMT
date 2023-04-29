@@ -28,9 +28,19 @@ sh train.sh $GPU_ID $MEMORY_GATE $N_SEGMENTS
 
 1. Session 5 test set perplexity with varying number of segments during train and test.
 
-| Train \ Eval | 2      | 4      | 8      | 16     | all    |
-|--------------|--------|--------|--------|--------|--------|
-| 2            |        |        |        |        |        |
-| 4            |        |        |        |        |        |
-| 8            |        |        |        |        |        |
-| 16           |        |        |        |        |        |
+| Train \ Eval | 2 (235) | 4 (471) | 8 (943) | 16 (1,887) | all (max=3099) |
+|--------------|---------|---------|---------|------------|----------------|
+| 2            |         |         |         |            |                |
+| 4            |         |         |         |            |                |
+| 8            |         |         |         |            |                |
+| 16           |         |         |         |            |                |
+
+### Stats
+
+Input sequence lengths
+
+| split | max   | mean    | std     |
+|-------|-------|---------|---------|
+| train | 2331  | 741.150 | 513.017 |
+| valid | 3132  | 973.731 | 654.354 |
+| test  | 3099  | 981.203 | 656.987 |
