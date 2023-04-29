@@ -75,9 +75,9 @@ class MscDataset(Dataset):
         session_ids = []
         for chat in tqdm(self.data, desc='format data'):
             # TODO: sequence per chat, not session
+            curr_seqlen = 0
+            sequence = []
             for sess_id, session in enumerate(chat[:self.max_session]):
-                curr_seqlen = 0
-                sequence = []
                 for dialog in session:
                     encoded = self.tokenizer.encode(dialog)[:-1]  # skip eos
                     if curr_seqlen + len(encoded) + 1 <= self.max_length:
@@ -111,36 +111,27 @@ class MscDataset(Dataset):
         responses = []
         session_ids = []
         for chat in tqdm(self.data, desc='format data'):
-            #TODO: split by chat
+            sequence = []
             for sess_id, session in enumerate(chat[:self.max_session]):
-                curr_seqlen = 0
-                sequence = []
                 for dialog in session:
                     # TODO: just all sentence (not by length)
                     encoded = self.tokenizer.encode(dialog)[:-1]  # skip eos
-                    if curr_seqlen + len(encoded) + 1 <= self.max_length:
-                        sequence.append(encoded)
-                        curr_seqlen += len(encoded)
+                    sequence.append(encoded)
+                    if len(sequence) == 1:
+                        continue
+                    elif len(sequence) == 2:
+                        histories.append(None)
+                        queries.append(sequence[-2])
+                        response = sequence[-1]
+                        response = response[:self.tokenizer.model_max_length - 1]
+                        responses.append(response)
                     else:
-                        history = sequence[:-1]
-                        query = sequence[-1]
-                        response = encoded
-                        if not history:
-                            history = None
-                        histories.append(history)
-                        queries.append(query)
-                        responses.append(response[:self.tokenizer.model_max_length - 1])
-                        session_ids.append(sess_id)
-
-                        # encoded text as next
-                        if history is not None:
-                            oldest = history.pop(0)
-                            sequence = history + [query, response]
-                        else:
-                            oldest = []
-                            sequence = [query, response]
-                        curr_seqlen = curr_seqlen - len(oldest) + len(query) + len(response)
-
+                        histories.append(sequence[:-2])
+                        queries.append(sequence[-2])
+                        response = sequence[-1]
+                        response = response[:self.tokenizer.model_max_length - 1]
+                        responses.append(response)
+                    session_ids.append(sess_id)
         return histories, queries, responses, session_ids
 
     def __len__(self):
