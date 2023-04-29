@@ -92,6 +92,7 @@ def main():
             lora_alpha=args.lora_alpha,
             lora_dropout=args.lora_dropout,
             bias="none",
+            target_modules=['q_proj', 'k_proj', 'v_proj', 'o_proj'],
         )
         if args.train_8bit:
             model = prepare_model_for_int8_training(model)

@@ -70,6 +70,7 @@ class RMTTrainer(Trainer):
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
         inputs = self._prepare_inputs(inputs)
         model.eval()
+        model.config.use_cache = True  # faster
         with torch.no_grad():
             logits = model(**inputs).logits
             labels = inputs['labels']
@@ -95,7 +96,7 @@ def compute_metrics(eval_preds):
     attention_mask = labels != -100
 
     loss = F.cross_entropy(logits.permute(0, 2, 1), labels, reduction='none')  # [N, T]
-    loss = loss.sum(-1) / attention_mask.sum(-1) # [N,]
+    loss = loss.sum(-1) / attention_mask.sum(-1)  # [N,]
 
     session_ppl = {}
     for i in torch.unique(session_ids):
