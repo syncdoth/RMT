@@ -75,9 +75,9 @@ class MscDataset(Dataset):
         session_ids = []
         for chat in tqdm(self.data, desc='format data'):
             # TODO: sequence per chat, not session
+            curr_seqlen = 0
+            sequence = []
             for sess_id, session in enumerate(chat[:self.max_session]):
-                curr_seqlen = 0
-                sequence = []
                 for dialog in session:
                     encoded = self.tokenizer.encode(dialog)[:-1]  # skip eos
                     if curr_seqlen + len(encoded) + 1 <= self.max_length:
