@@ -99,6 +99,8 @@ def compute_metrics(eval_preds):
 
     session_ppl = {}
     for i in torch.unique(session_ids):
+        if i == -100:
+            continue
         session_ppl[f'session-{i}-ppl'] = torch.exp(loss[session_ids == i].mean())
 
     total_ppl = torch.exp(loss.mean())
