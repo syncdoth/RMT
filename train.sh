@@ -1,17 +1,24 @@
 ids=$1
 # GPU_PER_NODE=$2
 memory_gate=$2
+num_seg=$3
 
-# CUDA_VISIBLE_DEVICES=$ids WORLD_SIZE=$GPU_PER_NODE torchrun --nproc_per_node $GPU_PER_NODE \
+# hyperparameters defined here
+lr=1e-5
+max_steps=2000
+memory_length=10
+
+# For multi-gpu, uncomment below and comment-out python main.py
+# CUDA_VISIBLE_DEVICES=$ids WORLD_SIZE=$GPU_PER_NODE torchrun --nproc_per_node $GPU_PER_NODE main.py \
 CUDA_VISIBLE_DEVICES=$ids python main.py \
     --model_name 'facebook/blenderbot-3B' \
-    --wandb_run_name "blenderbot3B-RMT-seg4-train_session4-test_session5-$memory_gate" \
-    --learning_rate 2e-5 \
+    --wandb_run_name "blenderbot3B-RMT-seg$num_seg-train_session4-test_session5-$memory_gate" \
+    --learning_rate $lr \
     --warmup_steps 0 \
     --weight_decay 0 \
     --eval_steps 100 \
     --eval_accumulation_steps 100 \
-    --max_steps 2000 \
+    --max_steps $max_steps \
     --num_train_epochs 5 \
     --report_to 'wandb' \
     --output_dir 'outputs' \
@@ -24,7 +31,7 @@ CUDA_VISIBLE_DEVICES=$ids python main.py \
     --per_device_eval_batch_size 32 \
     --gradient_accumulation_steps 1 \
     --gradient_checkpointing False \
-    --num_segments 4 \
+    --num_segments $num_seg \
     --train_max_session 4 \
     --valid_max_session 5 \
     --test_max_session 5 \
