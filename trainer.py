@@ -33,6 +33,8 @@ class RMTTrainingArgs(TrainingArguments):
     ################################# RMT ARGS #################################
     memory_length: int = 10
     num_segments: int = 1
+    eval_num_segments: int = field(
+        default=-1, metadata={'help': 'num_segments during eval. -1 means using entire sequence.'})
     memory_position: str = field(default='left',
                                  metadata={
                                      "help": "where the memory tokens to be placed.",

@@ -113,6 +113,11 @@ class MscDataset(Dataset):
                 # for baseline, constrain input seq len to
                 # model's max_seq_len (-1 to add eos later)
                 input_ids = input_ids[-(self.tokenizer.model_max_length - 1):]
+            else:  # eval
+                if self.max_length > 0:
+                    # this means that we are doing ablation study of number of
+                    # segments during eval
+                    input_ids = input_ids[-(self.max_length - 1):]
 
         if self.mode != 'baseline':
             # add memory tokens

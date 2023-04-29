@@ -102,8 +102,21 @@ def main():
         model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
         rmt_train_args.gradient_checkpointing = False  # incompatible with lora
 
+    # prepare max input seq length with number of segments for training.
     max_input_seq_len = (model.config.max_position_embeddings -
                          rmt_train_args.memory_length) * rmt_train_args.num_segments
+    print(f"During training, {rmt_train_args.num_segments} segments will be used.",
+          f"This leads to {max_input_seq_len - 1} tokens in encoder input.")
+
+    # for eval, defaults to use the entire sequence.
+    if rmt_train_args.eval_num_segments > 0:
+        eval_max_input_seq_len = (model.config.max_position_embeddings -
+                                  rmt_train_args.memory_length) * rmt_train_args.eval_num_segments
+        print(f"During eval, {rmt_train_args.eval_num_segments} segments will be used.",
+              f"This leads to {eval_max_input_seq_len - 1} tokens in encoder input.")
+    else:
+        print("During eval, entire sequence (history + query) will be used, no matter how long.")
+        eval_max_input_seq_len - 1
 
     if not args.test_only:
         train_dataset = MscDataset(
@@ -123,7 +136,7 @@ def main():
         valid_dataset = MscDataset(
             tokenizer,
             args.validation_data_path,
-            max_length=max_input_seq_len,
+            max_length=eval_max_input_seq_len,
             memory_length=rmt_train_args.memory_length,
             memory_position=rmt_train_args.memory_position,
             max_session=args.valid_max_session,
@@ -136,7 +149,7 @@ def main():
     test_dataset = MscDataset(
         tokenizer,
         args.test_data_path,
-        max_length=max_input_seq_len,
+        max_length=eval_max_input_seq_len,
         memory_length=rmt_train_args.memory_length,
         memory_position=rmt_train_args.memory_position,
         max_session=args.test_max_session,
