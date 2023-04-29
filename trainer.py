@@ -91,8 +91,11 @@ def compute_metrics(eval_preds):
     session_ids = labels[:, -1]  # [N,]  NOTE see prediction_step for explanation
     labels = labels[:, :-1]
 
+    # TODO -100 is pad idx by default;
+    attention_mask = labels != -100
+
     loss = F.cross_entropy(logits.permute(0, 2, 1), labels, reduction='none')  # [N, T]
-    loss = loss.mean(-1)  # [N,]
+    loss = loss.sum(-1) / attention_mask.sum(-1) # [N,]
 
     session_ppl = {}
     for i in torch.unique(session_ids):
