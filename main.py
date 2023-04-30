@@ -49,15 +49,11 @@ def main():
 
     if rmt_train_args.deepspeed and args.train_8bit:
         raise ValueError("--train_8bit is not compatible with deepspeed.")
-    if int(os.environ.get("WORLD_SIZE", 1)) != 1:
-        device_map = {"": rmt_train_args.local_rank}
-        if args.train_8bit:
-            rmt_train_args.ddp_find_unused_parameters = False  # integral for train_8bit
+    if args.train_8bit:
+        device_map = 'auto'
+        rmt_train_args.ddp_find_unused_parameters = False  # integral for train_8bit
     else:
-        if args.train_8bit:
-            device_map = 'auto'
-        else:
-            device_map = None
+        device_map = None
 
     # 0 means main process in DDP training, -1 means simple single-gpu python launch
     if rmt_train_args.local_rank in (0, -1):

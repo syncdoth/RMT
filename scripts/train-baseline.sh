@@ -1,7 +1,5 @@
 ##### stdin ####
 ids=$1
-memory_gate=$2
-num_seg=$3
 ################
 # compute number of gpus
 arrIDs=(${ids//,/ })
@@ -19,11 +17,11 @@ fi
 # hyperparameters defined here
 lr=1e-5
 max_steps=1000
-memory_length=10
 
+# define script
 script="$launcher main.py \
     --model_name facebook/blenderbot-3B \
-    --wandb_run_name blenderbot3B-RMT-seg$num_seg-mem_${memory_length}_$memory_gate \
+    --wandb_run_name blenderbot3B-msc \
     --learning_rate $lr \
     --warmup_steps 0 \
     --weight_decay 0 \
@@ -32,23 +30,23 @@ script="$launcher main.py \
     --max_steps $max_steps \
     --num_train_epochs 5 \
     --report_to 'wandb' \
-    --output_dir outputs/blenderbot3B-RMT-seg$num_seg-mem_${memory_length}_$memory_gate \
+    --output_dir outputs/blenderbot3B-msc \
     --logging_steps 10 \
     --save_strategy 'steps' \
     --save_steps 100 \
     --save_total_limit 3 \
     --load_best_model_at_end True \
-    --per_device_train_batch_size 32 \
+    --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 32 \
     --gradient_accumulation_steps 1 \
     --gradient_checkpointing False \
-    --num_segments $num_seg \
+    --num_segments 1 \
+    --eval_num_segments 1 \
     --train_max_session 4 \
     --valid_max_session 5 \
     --test_max_session 5 \
-    --memory_length 10 \
-    --memory_position left --write_memory_position right \
-    --memory_gate_type $memory_gate \
+    --memory_length 0 \
     --use_lora --bf16"
 
+# run the script
 eval $script
