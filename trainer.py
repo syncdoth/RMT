@@ -82,23 +82,22 @@ class RMTTrainer(Trainer):
         if prediction_loss_only:
             return eval_loss
         # loss, logit, label
-        # NOTE: quick hack to include session id in compute_metric: add it into labels.
-        session_ids = inputs['session_ids']  # [B, 1]
-        labels_session_ids = torch.cat([labels, session_ids], dim=1)
         # NOTE: for efficiency, compute ppl here!
         label_mask = labels != -100  # TODO -100 is pad idx by default;
         true_loss = loss.sum(-1) / label_mask.sum(-1)  # [B,]
-        return (eval_loss, true_loss, labels_session_ids)
+        session_ids = inputs['session_ids']  # [B, 1]
+        preds = torch.cat([true_loss.unsqueeze(1), session_ids], dim=1)  # [B, 2]
+        return (eval_loss, preds, labels)
 
 
 def compute_metrics(eval_preds):
     """Compute perplexity"""
     # NOTE: see prediction_step; predictions is actually "true loss" (loss concerning real seqlen)
     # This can be directly used for ppl computation
-    loss = torch.tensor(eval_preds.predictions)  # [N,]
-    labels = torch.LongTensor(eval_preds.label_ids)
-    session_ids = labels[:, -1]  # [N,]  NOTE see prediction_step for explanation
-    labels = labels[:, :-1]
+    preds = torch.tensor(eval_preds.predictions)  # [N, 2]
+
+    loss = preds[:, 0]
+    session_ids = preds[:, 1]
 
     session_ppl = {}
     for i in torch.unique(session_ids):
