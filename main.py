@@ -171,12 +171,18 @@ def main():
     )
     if args.use_lora:
         old_state_dict = model.state_dict
+        # TODO: change all checkpoint names
+        # NOTE: I have commented out
+        # `to_return = {k.replace(f".{adapter_name}", ""): v for k, v in to_return.items()}`
+        # from peft.get_peft_model_state_dict.
         model.state_dict = (
             lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())).__get__(
                 model, type(model))
+    import pdb; pdb.set_trace()
 
     if not args.test_only:
         trainer.train()
+        model.state_dict = old_state_dict
         model.save_pretrained(f"{rmt_train_args.output_dir}/{args.wandb_run_name}")
     trainer.evaluate(test_dataset, metric_key_prefix="test")
     wandb.finish()
