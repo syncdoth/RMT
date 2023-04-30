@@ -25,7 +25,7 @@ def load_transformer_LM_tokenizer(model_name_or_path, tokenizer_name_or_path=Non
         # tokenizer.pad_token = tokenizer.eos_token
         # model.config.pad_token_id = model.config.eos_token_id
     memory_length = kwargs.get('memory_length', None)
-    if memory_length is not None:
+    if memory_length is not None and memory_length > 0:
         tokenizer.add_special_tokens(
             {'additional_special_tokens': [MEM_TOKEN.format(i) for i in range(memory_length)]})
         model.resize_token_embeddings(len(tokenizer))
@@ -68,8 +68,9 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
         else:
             raise ValueError("one of input_ids or inputs_embeds must not be None")
 
-        if seq_len <= self.config.max_position_embeddings:
+        if seq_len <= self.config.max_position_embeddings or self.config.memory_length < 1:
             # if not too long, just normal forward will do.
+            # Also, if memory_length == 0, this is just blenderbot.
             return super().forward(input_ids=input_ids,
                                    attention_mask=attention_mask,
                                    inputs_embeds=inputs_embeds,
