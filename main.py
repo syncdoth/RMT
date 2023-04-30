@@ -59,7 +59,8 @@ def main():
         else:
             device_map = None
 
-    if rmt_train_args.local_rank == 0:
+    # 0 means main process in DDP training, -1 means simple single-gpu python launch
+    if rmt_train_args.local_rank in (0, -1):
         wandb.init(
             project=args.wandb_project_name,
             name=args.wandb_run_name,
