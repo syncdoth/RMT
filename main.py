@@ -178,7 +178,6 @@ def main():
         model.state_dict = (
             lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())).__get__(
                 model, type(model))
-    import pdb; pdb.set_trace()
 
     if not args.test_only:
         trainer.train()
