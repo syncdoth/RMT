@@ -81,7 +81,9 @@ def main():
     if args.use_lora:
         from peft import (get_peft_model, get_peft_model_state_dict, LoraConfig, TaskType,
                           prepare_model_for_int8_training, PeftModel)
-        modules_to_save = ['embed_tokens']  # save embedding
+        modules_to_save = None
+        if rmt_train_args.memory_length > 0:
+            modules_to_save = ['embed_tokens']  # save embedding
         if rmt_train_args.memory_gate_type == 'attention':
             modules_to_save.append('memory_attention')
         peft_config = LoraConfig(
