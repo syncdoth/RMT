@@ -83,7 +83,7 @@ def main():
                           prepare_model_for_int8_training, PeftModel)
         modules_to_save = None
         if rmt_train_args.memory_length > 0:
-            modules_to_save = ['embed_tokens']  # save embedding
+            modules_to_save = ['shared']  # save embedding
         if rmt_train_args.memory_gate_type == 'attention':
             modules_to_save.append('memory_attention')
         peft_config = LoraConfig(
@@ -93,7 +93,7 @@ def main():
             lora_alpha=args.lora_alpha,
             lora_dropout=args.lora_dropout,
             bias="none",
-            target_modules=['q_proj', 'k_proj', 'v_proj', 'o_proj'],
+            target_modules='model.*(q_proj|k_proj|v_proj|o_proj)$',
             modules_to_save=modules_to_save,
         )
         if args.train_8bit:
