@@ -78,7 +78,7 @@ def main():
     )
 
     if args.load_checkpoint:
-        model.load_state_dict(torch.load(args.load_checkpoint))
+        model.load_state_dict(torch.load(args.load_checkpoint), strict=False)
 
     if args.use_lora:
         from peft import (get_peft_model, get_peft_model_state_dict, LoraConfig, TaskType,
