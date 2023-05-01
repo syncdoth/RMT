@@ -2,6 +2,9 @@
 ids=$1
 memory_gate=$2
 num_seg=$3
+write_memory_position=$4
+train_bs=$5
+grad_check=$6
 ################
 # compute number of gpus
 arrIDs=(${ids//,/ })
@@ -20,34 +23,35 @@ fi
 lr=1e-5
 max_steps=1000
 memory_length=10
+memory_position=left
 
 script="$launcher main.py \
     --model_name facebook/blenderbot-3B \
-    --wandb_run_name blenderbot3B-RMT-seg$num_seg-mem_${memory_length}_$memory_gate \
+    --wandb_run_name blenderbot3B-RMT-seg$num_seg-mem_r${memory_position}_w${write_memory_position}_${memory_length}_$memory_gate \
     --learning_rate $lr \
     --warmup_steps 0 \
     --weight_decay 0 \
-    --eval_steps 100 \
+    --eval_steps 500 \
     --eval_accumulation_steps 100 \
     --max_steps $max_steps \
     --num_train_epochs 5 \
     --report_to 'wandb' \
-    --output_dir outputs/blenderbot3B-RMT-seg$num_seg-mem_${memory_length}_$memory_gate \
+    --output_dir outputs/blenderbot3B-RMT-seg$num_seg-mem_r${memory_position}_w${write_memory_position}_${memory_length}_$memory_gate \
     --logging_steps 10 \
     --save_strategy 'steps' \
-    --save_steps 100 \
+    --save_steps 500 \
     --save_total_limit 3 \
     --load_best_model_at_end True \
-    --per_device_train_batch_size 32 \
+    --per_device_train_batch_size $train_bs \
     --per_device_eval_batch_size 32 \
     --gradient_accumulation_steps 1 \
-    --gradient_checkpointing False \
+    --gradient_checkpointing $grad_check \
     --num_segments $num_seg \
     --train_max_session 4 \
     --valid_max_session 5 \
     --test_max_session 5 \
     --memory_length 10 \
-    --memory_position left --write_memory_position right \
+    --memory_position $memory_position --write_memory_position $write_memory_position \
     --memory_gate_type $memory_gate \
     --use_lora --bf16"
 

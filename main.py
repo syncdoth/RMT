@@ -40,6 +40,7 @@ class ExperimentArgs:
     load_baseline: bool = False
 
     load_checkpoint: str = field(default=None)
+    load_peft_checkpoint: str = field(default=None)
 
 
 def main():
@@ -77,27 +78,34 @@ def main():
         device_map=device_map,
     )
 
-    if args.load_checkpoint:
-        model.load_state_dict(torch.load(args.load_checkpoint), strict=False)
-
     if args.use_lora:
         from peft import (get_peft_model, get_peft_model_state_dict, LoraConfig, TaskType,
-                          prepare_model_for_int8_training)
+                          prepare_model_for_int8_training, PeftModel)
+        modules_to_save = ['embed_tokens']  # save embedding
+        if rmt_train_args.memory_gate_type == 'attention':
+            modules_to_save.append('memory_attention')
         peft_config = LoraConfig(
-            task_type=TaskType.CAUSAL_LM,
+            task_type=TaskType.SEQ_2_SEQ_LM,
             inference_mode=False,
             r=args.lora_r,
             lora_alpha=args.lora_alpha,
             lora_dropout=args.lora_dropout,
             bias="none",
             target_modules=['q_proj', 'k_proj', 'v_proj', 'o_proj'],
+            modules_to_save=modules_to_save,
         )
         if args.train_8bit:
             model = prepare_model_for_int8_training(model)
-        model = get_peft_model(model, peft_config)
+        if args.load_peft_checkpoint:
+            model = PeftModel.from_pretrained(model, args.load_peft_checkpoint)
+        else:
+            model = get_peft_model(model, peft_config)
         model.print_trainable_parameters()
         model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
         rmt_train_args.gradient_checkpointing = False  # incompatible with lora
+
+    if args.load_checkpoint:
+        model.load_state_dict(torch.load(args.load_checkpoint), strict=False)
 
     # prepare max input seq length with number of segments for training.
     max_input_seq_len = (model.config.max_position_embeddings -
@@ -166,20 +174,20 @@ def main():
                                              max_length=model.config.max_position_embeddings),
         compute_metrics=compute_metrics,
     )
-    if args.use_lora:
-        old_state_dict = model.state_dict
-        # TODO: change all checkpoint names
-        # NOTE: I have commented out
-        # `to_return = {k.replace(f".{adapter_name}", ""): v for k, v in to_return.items()}`
-        # from peft.get_peft_model_state_dict.
-        model.state_dict = (
-            lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())).__get__(
-                model, type(model))
+    # if args.use_lora:
+    #     old_state_dict = model.state_dict
+    #     # TODO: change all checkpoint names
+    #     # NOTE: I have commented out
+    #     # `to_return = {k.replace(f".{adapter_name}", ""): v for k, v in to_return.items()}`
+    #     # from peft.get_peft_model_state_dict.
+    #     model.state_dict = (
+    #         lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())).__get__(
+    #             model, type(model))
 
     if not args.test_only:
         trainer.train()
-        model.state_dict = old_state_dict
-        model.save_pretrained(f"{rmt_train_args.output_dir}/{args.wandb_run_name}")
+        # model.state_dict = old_state_dict
+        model.save_pretrained(f"{rmt_train_args.output_dir}")
     trainer.evaluate(test_dataset, metric_key_prefix="test")
     wandb.finish()
 
