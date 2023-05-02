@@ -59,7 +59,7 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
                 inputs_embeds=None,
                 session_ids=None,
                 return_dict=True,
-                return_encoder_output_only=False,
+                return_encoder_outputs_only=False,
                 **kwargs):
         del session_ids  # unused
 
@@ -123,7 +123,7 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
             prev_memory = memory_embeds
             # TODO: use .detach() here well for Truncated BPTT.
 
-        if return_encoder_output_only:
+        if return_encoder_outputs_only:
             return encoder_outputs, segment_embeds, attention_mask_seg
 
         return super().forward(encoder_outputs=encoder_outputs,
