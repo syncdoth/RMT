@@ -25,6 +25,34 @@ class ExperimentArgs:
     load_checkpoint: str = field(default=None)
     load_peft_checkpoint: str = field(default=None)
     train_8bit: bool = False
+    out_file: str = 'out.jsonl'
+
+
+
+def infer_testset(model, tokenizer, test_dataloader, generate_kwargs, device, fout):
+    for batch in tqdm(test_dataloader):
+        seqlen = batch['input_ids'].shape[1]
+        labels = batch.pop('labels')
+        session_ids = batch.pop('session_ids')
+        session_ids = session_ids.squeeze(-1).tolist()
+
+        # device
+        batch = {k: v.to(device) for k, v in batch.items()}
+        if seqlen <= model.config.max_position_embeddings:
+            generated = model.generate(**batch, **generate_kwargs)
+        else:
+            encoder_outputs, inputs_embeds, attention_mask = model(**batch, return_encoder_outputs_only=True)
+            generated = model.generate(encoder_outputs=encoder_outputs, inputs_embeds=inputs_embeds, attention_mask=attention_mask,
+                                       **generate_kwargs)
+        decoded = tokenizer.batch_decode(generated, skip_special_tokens=True)
+        labels[labels == -100] = tokenizer.eos_token_id
+        answer = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        inputs = tokenizer.batch_decode(batch['input_ids'], skip_special_tokens=True)
+
+        for i, p, t, s in zip(inputs, decoded, answer, session_ids):
+            line = {'input': i, 'pred': p, 'target': t, 'session': s}
+            json.dump(line, fout)
+            fout.write('\n')
 
 
 def main():
@@ -89,32 +117,8 @@ def main():
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = model.to(device)
-    results = []
-    for batch in tqdm(test_dataloader):
-        seqlen = batch['input_ids'].shape[1]
-        labels = batch.pop('labels')
-        session_ids = batch.pop('session_ids')
-        session_ids = session_ids.squeeze(-1).tolist()
-
-        # device
-        batch = {k: v.to(device) for k, v in batch.items()}
-        if seqlen <= model.config.max_position_embeddings:
-            generated = model.generate(**batch, **generate_kwargs)
-        else:
-            encoder_outputs, inputs_embeds, attention_mask = model(**batch, return_encoder_outputs_only=True)
-            generated = model.generate(encoder_outputs=encoder_outputs, inputs_embeds=inputs_embeds, attention_mask=attention_mask,
-                                       **generate_kwargs)
-        decoded = tokenizer.batch_decode(generated, skip_special_tokens=True)
-        labels[labels == -100] = tokenizer.eos_token_id
-        answer = tokenizer.batch_decode(labels, skip_special_tokens=True)
-
-        for p, t, s in zip(decoded, answer, session_ids):
-            results.append({'pred': p, 'target': t, 'session': s})
-
-    with open('out.jsonl', 'w') as f:
-        for line in results:
-            json.dump(line, f)
-            f.write('\n')
+    with open(args.out_file, 'w') as fout:
+        infer_testset(model, tokenizer, test_dataloader, generate_kwargs, device, fout)
 
 
 if __name__ == "__main__":
