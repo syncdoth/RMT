@@ -124,7 +124,10 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
             # TODO: use .detach() here well for Truncated BPTT.
 
         if return_encoder_outputs_only:
-            return encoder_outputs, segment_embeds, attention_mask_seg
+            _, memory_ids = self.split_memory(input_ids, self.config.memory_position,
+                                              self.config.memory_length)
+            last_segment_input_ids = self.append_mem_tensor(segment, memory_ids)
+            return encoder_outputs, last_segment_input_ids, attention_mask_seg
 
         return super().forward(encoder_outputs=encoder_outputs,
                                attention_mask=attention_mask_seg,
