@@ -84,9 +84,9 @@ class RMTTrainer(Trainer):
         # loss, logit, label
         # NOTE: for efficiency, compute ppl here!
         label_mask = labels != -100  # TODO -100 is pad idx by default;
-        true_loss = loss.sum(-1) / label_mask.sum(-1)  # [B,]
+        true_loss = torch.cat([loss.sum(-1, keepdim=True), label_mask.sum(-1, keepdim=True)], 1)
         session_ids = inputs['session_ids']  # [B, 1]
-        preds = torch.cat([true_loss.unsqueeze(1), session_ids], dim=1)  # [B, 2]
+        preds = torch.cat([true_loss, session_ids], dim=1)  # [B, 2]
         return (eval_loss, preds, labels)
 
 
@@ -95,17 +95,23 @@ def compute_metrics(eval_preds):
     # NOTE: see prediction_step; predictions is actually "true loss" (loss concerning real seqlen)
     # This can be directly used for ppl computation
     preds = torch.tensor(eval_preds.predictions)  # [N, 2]
-
     loss = preds[:, 0]
-    session_ids = preds[:, 1]
+    sent_len = preds[:, 1]
+    session_ids = preds[:, 2]
+
+    sent_ppl = loss / sent_len
 
     session_ppl = {}
     for i in torch.unique(session_ids):
         if i == -100:
             continue
-        session_ppl[f'session-{i}-ppl'] = torch.exp(loss[session_ids == i].mean())
+        session_ppl[f'session-{i}-ppl'] = torch.exp(sent_ppl[session_ids == i].mean())
+        corpus_ppl = torch.exp(loss[session_ids == i].sum() / sent_len[session_ids == i].sum())
+        session_ppl[f'session-{int(i)}-corpus-ppl'] = corpus_ppl
 
-    total_ppl = torch.exp(loss.mean())
-    session_ppl['all-ppl'] = total_ppl
+    total_sent_ppl = torch.exp(sent_ppl.mean())
+    total_corpus_ppl = torch.exp(loss.sum() / sent_len.sum())
+    session_ppl['all-ppl'] = total_sent_ppl
+    session_ppl['all-corpus-ppl'] = total_corpus_ppl
 
     return session_ppl
