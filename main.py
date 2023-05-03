@@ -46,6 +46,8 @@ class ExperimentArgs:
 
     add_speaker_tokens: bool = False
 
+    task: str = 'default'
+
 
 def main():
     torch.backends.cuda.matmul.allow_tf32 = True  # allows tf32, only on Ampere GPUs
@@ -142,6 +144,7 @@ def main():
             memory_position=rmt_train_args.memory_position,
             max_session=args.train_max_session,
             mode='train',
+            task=args.task,
         )
     else:
         rmt_train_args.evaluation_strategy = 'no'  # skip loading validation set
@@ -157,6 +160,7 @@ def main():
             max_session=args.valid_max_session,
             mode='eval',
             target_session=args.test_target_session,
+            task=args.task,
         )
     else:
         valid_dataset = None
@@ -171,6 +175,7 @@ def main():
         max_session=args.test_max_session,
         mode='eval' if not args.load_baseline else 'baseline',
         target_session=args.test_target_session,
+        task=args.task,
     )
 
     ################################################################

@@ -36,6 +36,8 @@ class ExperimentArgs:
     lora_alpha: int = 32
     lora_dropout: float = 0.1
 
+    task: str = 'default'
+
 
 @torch.inference_mode()
 def infer_testset(model, tokenizer, test_dataloader, generate_kwargs, device, fout):
@@ -142,6 +144,7 @@ def main():
         max_session=args.test_max_session,
         mode='eval' if not args.load_baseline else 'baseline',
         target_session=args.test_target_session,
+        task=args.task,
     )
     test_dataloader = DataLoader(test_dataset, batch_size=rmt_train_args.per_device_eval_batch_size, shuffle=False,
                                  collate_fn=DataCollatorForSeq2Seq(tokenizer))

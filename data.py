@@ -1,4 +1,5 @@
 from itertools import chain
+import random
 
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
@@ -78,6 +79,7 @@ class MscDataset(Dataset):
         responses = []
         session_ids = []
         for chat in tqdm(self.data, desc='format data'):
+            current_chat_idx = len(histories)
             sequence = []
             for sess_id, session in enumerate(chat[:self.max_session]):
                 for dialog in session:
@@ -100,11 +102,22 @@ class MscDataset(Dataset):
                         # response = response[:self.tokenizer.model_max_length - 1]
                         responses.append(response)
                     session_ids.append(sess_id)
+            if self.task == 'remember_sess1':
+                # in this task, after all is finished,
+                idx = random.randint(0, 5)
+                idx = idx * 2  # NOTE: the new question should be from Speaker 1, so even idx
+                utt_id = current_chat_idx + idx
+                histories.append(histories[-1])
+                queries.append(queries[utt_id])
+                responses.append(responses[utt_id])
+                session_ids.append(100)  # unique: session_id 100 is for remember task.
 
         if self.target_session is not None:
             data_idx = []
             for i, sid in enumerate(session_ids):
                 if sid + 1 == self.target_session:
+                    data_idx.append(i)
+                elif self.task == 'remember_sess1' and sid == 100:
                     data_idx.append(i)
         else:
             data_idx = None
