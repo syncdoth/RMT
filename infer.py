@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from data import MscDataset
 from trainer import RMTTrainingArgs
 from model import load_transformer_LM_tokenizer
-
+from eval_metric import Metrics
 
 @dataclass
 class ExperimentArgs:
@@ -120,6 +120,14 @@ def main():
     with open(args.out_file, 'w') as fout:
         infer_testset(model, tokenizer, test_dataloader, generate_kwargs, device, fout)
 
+    # eval_metric
+    metrics = Metrics(args.out_file)
+    dist1, dist2, dist3, dist4 = metrics.distinct_metrics()
+    bleu1, bleu2, bleu3, bleu4 = metrics.bleu_metrics()
+    metrics_dial = {
+        "dist1": dist1, "dist2": dist2, "dist3": dist3, "dist4":dist4, 
+        "bleu1":bleu1, "bleu2":bleu2, "bleu3":bleu3, "bleu4":bleu4,
+    }
 
 if __name__ == "__main__":
     main()
