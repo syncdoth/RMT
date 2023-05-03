@@ -52,6 +52,8 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
         self.config.write_memory_position = write_memory_position
         self.config.memory_gate_type = memory_gate_type
 
+        if self.config.memory_length > 0:
+            self.memory_proj = torch.nn.Linear(config.d_model, config.d_model)
         if self.config.memory_gate_type == 'attention':
             self.memory_attention = BlenderbotAttention(embed_dim=config.d_model,
                                                         num_heads=config.encoder_attention_heads,
@@ -151,17 +153,17 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
 
     def append_memory(self, input_tensor, memory_tensor, prev_memory=None):
         if input_tensor.dtype == torch.long:
-            inputs_embeds = self.get_input_embeddings()(input_tensor)
+            inputs_embeds = self.get_input_embeddings()(input_tensor) * self.get_encoder().embed_scale
         else:
             inputs_embeds = input_tensor
         if isinstance(memory_tensor, tuple):
             if memory_tensor[0].dtype == torch.long:
-                memory_embeds = (self.get_input_embeddings()(mem) for mem in memory_tensor)
+                memory_embeds = (self.get_input_embeddings()(mem) * self.get_encoder().embed_scale for mem in memory_tensor)
             else:
                 memory_embeds = memory_tensor
         else:
             if memory_tensor.dtype == torch.long:
-                memory_embeds = self.get_input_embeddings()(memory_tensor)
+                memory_embeds = self.get_input_embeddings()(memory_tensor) * self.get_encoder().embed_scale
             else:
                 memory_embeds = memory_tensor
 

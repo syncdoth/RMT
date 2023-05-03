@@ -36,6 +36,7 @@ class ExperimentArgs:
     train_max_session: int = 1
     valid_max_session: int = 1
     test_max_session: int = 1
+    test_target_session: int = None
 
     test_only: bool = False
     load_baseline: bool = False
@@ -87,7 +88,7 @@ def main():
                           prepare_model_for_int8_training, PeftModel)
         modules_to_save = None
         if rmt_train_args.memory_length > 0:
-            modules_to_save = ['shared']  # save embedding
+            modules_to_save = ['shared', 'memory_proj']  # save embedding
         if rmt_train_args.memory_gate_type == 'attention':
             modules_to_save.append('memory_attention')
         peft_config = LoraConfig(
@@ -155,6 +156,7 @@ def main():
             memory_position=rmt_train_args.memory_position,
             max_session=args.valid_max_session,
             mode='eval',
+            target_session=args.test_target_session,
         )
     else:
         valid_dataset = None
@@ -168,6 +170,7 @@ def main():
         memory_position=rmt_train_args.memory_position,
         max_session=args.test_max_session,
         mode='eval' if not args.load_baseline else 'baseline',
+        target_session=args.test_target_session,
     )
 
     ################################################################

@@ -54,11 +54,14 @@ def infer_testset(model, tokenizer, test_dataloader, generate_kwargs, device, fo
             encoder_outputs, attention_mask = model(**batch, return_encoder_outputs_only=True)
             generated = model.generate(encoder_outputs=encoder_outputs, attention_mask=attention_mask,
                                        **generate_kwargs)
-        decoded = tokenizer.batch_decode(generated, skip_special_tokens=True)
-        answer = tokenizer.batch_decode(labels, skip_special_tokens=True)
-        inputs = tokenizer.batch_decode(batch['input_ids'], skip_special_tokens=True)
+        decoded = tokenizer.batch_decode(generated, skip_special_tokens=False)
+        answer = tokenizer.batch_decode(labels, skip_special_tokens=False)
+        inputs = tokenizer.batch_decode(batch['input_ids'], skip_special_tokens=False)
 
         for i, p, t, s in zip(inputs, decoded, answer, session_ids):
+            i = i.replace(tokenizer.pad_token, '')
+            p = p.replace(tokenizer.pad_token, '')
+            t = t.replace(tokenizer.pad_token, '')
             line = {'input': i, 'pred': p, 'target': t, 'session': s}
             json.dump(line, fout)
             fout.write('\n')
@@ -98,7 +101,7 @@ def main():
                           prepare_model_for_int8_training, PeftModel)
         modules_to_save = None
         if rmt_train_args.memory_length > 0:
-            modules_to_save = ['shared']  # save embedding
+            modules_to_save = ['shared', 'memory_proj']  # save embedding
         if rmt_train_args.memory_gate_type == 'attention':
             modules_to_save.append('memory_attention')
         peft_config = LoraConfig(
@@ -116,7 +119,7 @@ def main():
     if args.load_checkpoint:
         start = time.time()
         print("load full checkpoint")
-        model.load_state_dict(torch.load(args.load_checkpoint), strict=True)
+        model.load_state_dict(torch.load(args.load_checkpoint), strict=False)
         print(f"done in {time.time() - start:.2f}s")
 
 
@@ -145,9 +148,9 @@ def main():
 
     generate_kwargs = dict(
         max_new_tokens=40,
-        do_sample=False,
-        top_p=1,
-        num_beams=8,
+        do_sample=True,
+        top_p=0.95,
+        # num_beams=8,
     )
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -160,9 +163,10 @@ def main():
     dist1, dist2, dist3, dist4 = metrics.distinct_metrics()
     bleu1, bleu2, bleu3, bleu4 = metrics.bleu_metrics()
     metrics_dial = {
-        "dist1": dist1, "dist2": dist2, "dist3": dist3, "dist4":dist4, 
+        "dist1": dist1, "dist2": dist2, "dist3": dist3, "dist4":dist4,
         "bleu1":bleu1, "bleu2":bleu2, "bleu3":bleu3, "bleu4":bleu4,
     }
+    print(metrics_dial)
 
 if __name__ == "__main__":
     main()
