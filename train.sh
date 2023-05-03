@@ -25,9 +25,11 @@ max_steps=1000
 memory_length=10
 memory_position=left
 
+run_name=blenderbot3B-RMT-seg$num_seg-mem_r${memory_position}_w${write_memory_position}_${memory_length}_$memory_gate-textnorm
+
 script="$launcher main.py \
     --model_name facebook/blenderbot-3B \
-    --wandb_run_name blenderbot3B-RMT-seg$num_seg-mem_r${memory_position}_w${write_memory_position}_${memory_length}_$memory_gate \
+    --wandb_run_name $run_name \
     --learning_rate $lr \
     --warmup_steps 0 \
     --weight_decay 0 \
@@ -36,7 +38,7 @@ script="$launcher main.py \
     --max_steps $max_steps \
     --num_train_epochs 5 \
     --report_to 'wandb' \
-    --output_dir outputs/blenderbot3B-RMT-seg$num_seg-mem_r${memory_position}_w${write_memory_position}_${memory_length}_$memory_gate \
+    --output_dir outputs/$run_name \
     --logging_steps 10 \
     --save_strategy 'steps' \
     --save_steps 500 \
