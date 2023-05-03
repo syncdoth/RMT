@@ -19,6 +19,7 @@ class MscDataset(Dataset):
         max_session=1,
         mode='train',
         target_session=None,
+        task='default',
     ):
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -27,10 +28,13 @@ class MscDataset(Dataset):
         self.max_session = max_session
         self.mode = mode  # [train, eval]
         self.target_session = target_session
-        # self.identity = 'Speaker 2'  # TODO
+        self.identity = None  # TODO
+        self.sep_token = '</s> <s>'
+        self.task = task
 
         self.data, self.data_stats = self.load_data(data_path)
         self.histories, self.queries, self.responses, self.session_ids, self.data_idx = self.format_data()
+        # NOTE: this used to be ' '.join(). changed it to ''.join()
         self.memory_tokens = self.tokenizer.encode(''.join(
             [MEM_TOKEN.format(i) for i in range(memory_length)]))[:-1]
 
@@ -47,13 +51,15 @@ class MscDataset(Dataset):
             for session in row['previous_dialogs']:
                 # session: {'personas': list, 'dialog': list}
                 session_history = [
-                    f"[Speaker {u % 2 + 1}]: {normalize_text(dialog['text'])}"
+                    # f"[Speaker {u % 2 + 1}]: {normalize_text(dialog['text'])}"
+                    normalize_text(dialog['text'])
                     for u, dialog in enumerate(session['dialog'])
                 ]
                 history.append(session_history)
                 num_dialogs.append(len(session_history))
 
-            current_session = [f"[{dialog['id']}]: {normalize_text(dialog['text'])}" for dialog in row['dialog']]
+            # current_session = [f"[{dialog['id']}]: {normalize_text(dialog['text'])}" for dialog in row['dialog']]
+            current_session = [normalize_text(dialog['text']) for dialog in row['dialog']]
             history.append(current_session)  # list(list(str))
             num_dialogs.append(len(current_session))
 
@@ -76,21 +82,22 @@ class MscDataset(Dataset):
             for sess_id, session in enumerate(chat[:self.max_session]):
                 for dialog in session:
                     # TODO: just all sentence (not by length)
-                    encoded = self.tokenizer.encode(dialog)[:-1]  # skip eos
-                    sequence.append(encoded)
+                    # encoded = self.tokenizer.encode(dialog)[:-1]  # skip eos
+
+                    sequence.append(dialog)
                     if len(sequence) == 1:
                         continue
                     elif len(sequence) == 2:
                         histories.append(None)
                         queries.append(sequence[-2])
                         response = sequence[-1]
-                        response = response[:self.tokenizer.model_max_length - 1]
+                        # response = response[:self.tokenizer.model_max_length - 1]
                         responses.append(response)
                     else:
                         histories.append(sequence[:-2])
                         queries.append(sequence[-2])
                         response = sequence[-1]
-                        response = response[:self.tokenizer.model_max_length - 1]
+                        # response = response[:self.tokenizer.model_max_length - 1]
                         responses.append(response)
                     session_ids.append(sess_id)
 
@@ -117,9 +124,10 @@ class MscDataset(Dataset):
         response = self.responses[idx]
         sess_ids = self.session_ids[idx]
         if history is None:
-            input_ids = query
+            input_ids = self.tokenizer.encode(query)[:-1]
         else:
-            input_ids = list(chain.from_iterable(history)) + query
+            history = self.sep_token.join(history)
+            input_ids = self.tokenizer.encode(history + '\n' + query)[:-1]
             if self.mode == 'train':
                 # for training, constraint input seq len to
                 # (model's max_seq_len - memory_len) * num_segments (-1 to add eos later)
@@ -133,6 +141,12 @@ class MscDataset(Dataset):
                     # this means that we are doing ablation study of number of
                     # segments during eval
                     input_ids = input_ids[-(self.max_length - 1):]
+            if input_ids[0] == self.tokenizer.bos_token_id:
+                input_ids = input_ids[1:]
+        # response = response.replace('[Speaker 1]: ', '')
+        # response = response.replace('[Speaker 2]: ', '')
+        response = self.tokenizer.encode(response)
+        labels = response[:self.tokenizer.model_max_length - 1]
 
         if self.mode != 'baseline':
             # add memory tokens
@@ -145,7 +159,6 @@ class MscDataset(Dataset):
                 input_ids = self.memory_tokens[:half] + input_ids + self.memory_tokens[half:]
 
         input_ids = input_ids + [self.tokenizer.eos_token_id]
-        labels = response + [self.tokenizer.eos_token_id]
 
         return dict(input_ids=input_ids, labels=labels, session_ids=[sess_ids])
 
