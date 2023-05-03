@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import os
+import time
 
 import wandb
 from transformers import DataCollatorForSeq2Seq
@@ -42,6 +43,8 @@ class ExperimentArgs:
     load_checkpoint: str = field(default=None)
     load_peft_checkpoint: str = field(default=None)
 
+    add_speaker_tokens: bool = False
+
 
 def main():
     torch.backends.cuda.matmul.allow_tf32 = True  # allows tf32, only on Ampere GPUs
@@ -76,6 +79,7 @@ def main():
         memory_gate_type=rmt_train_args.memory_gate_type,
         load_in_8bit=args.train_8bit,
         device_map=device_map,
+        add_speaker_tokens=args.add_speaker_tokens,
     )
 
     if args.use_lora:
@@ -107,7 +111,10 @@ def main():
         rmt_train_args.gradient_checkpointing = False  # incompatible with lora
 
     if args.load_checkpoint:
+        print('loading from full checkpoint')
+        start = time.time()
         model.load_state_dict(torch.load(args.load_checkpoint), strict=False)
+        print(f'done in {time.time() - start:.2f}s')
 
     # prepare max input seq length with number of segments for training.
     max_input_seq_len = (model.config.max_position_embeddings -

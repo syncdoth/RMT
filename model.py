@@ -13,6 +13,7 @@ MEM_TOKEN = '[mem_{}]'
 
 
 def load_transformer_LM_tokenizer(model_name_or_path, tokenizer_name_or_path=None, **kwargs):
+    add_speaker_tokens = kwargs.pop('add_speaker_tokens', False)
     if tokenizer_name_or_path is None:
         tokenizer_name_or_path = model_name_or_path
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
@@ -26,8 +27,11 @@ def load_transformer_LM_tokenizer(model_name_or_path, tokenizer_name_or_path=Non
         # model.config.pad_token_id = model.config.eos_token_id
     memory_length = kwargs.get('memory_length', None)
     if memory_length is not None and memory_length > 0:
+        special_tokens = [MEM_TOKEN.format(i) for i in range(memory_length)]
+        if add_speaker_tokens:
+            special_tokens += ['[Speaker 1]', '[Speaker 2]']
         tokenizer.add_special_tokens(
-            {'additional_special_tokens': [MEM_TOKEN.format(i) for i in range(memory_length)]})
+            {'additional_special_tokens': special_tokens})
         model.resize_token_embeddings(len(tokenizer))
         model.config.memory_length = memory_length
 
@@ -124,10 +128,7 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
             # TODO: use .detach() here well for Truncated BPTT.
 
         if return_encoder_outputs_only:
-            _, memory_ids = self.split_memory(input_ids, self.config.memory_position,
-                                              self.config.memory_length)
-            last_segment_input_ids = self.append_mem_tensor(segment, memory_ids)
-            return encoder_outputs, last_segment_input_ids, attention_mask_seg
+            return encoder_outputs, attention_mask_seg
 
         return super().forward(encoder_outputs=encoder_outputs,
                                attention_mask=attention_mask_seg,
@@ -175,7 +176,7 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
         if self.config.memory_position == 'left':
             input_tensor = torch.cat([memory_tensor, input_tensor], dim=1)
         elif self.config.memory_position == 'right':
-            input_tensor = torch.cat([memory_tensor, input_tensor], dim=1)
+            input_tensor = torch.cat([input_tensor, memory_tensor], dim=1)
         else:
             input_tensor = torch.cat([memory_tensor[0], input_tensor, memory_tensor[1]], dim=1)
         return input_tensor
