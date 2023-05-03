@@ -18,6 +18,7 @@ class MscDataset(Dataset):
         memory_position='left',
         max_session=1,
         mode='train',
+        target_session=None,
     ):
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -25,11 +26,12 @@ class MscDataset(Dataset):
         self.memory_position = memory_position
         self.max_session = max_session
         self.mode = mode  # [train, eval]
+        self.target_session = target_session
         # self.identity = 'Speaker 2'  # TODO
 
         self.data, self.data_stats = self.load_data(data_path)
-        self.histories, self.queries, self.responses, self.session_ids = self.format_data()
-        self.memory_tokens = self.tokenizer.encode(' '.join(
+        self.histories, self.queries, self.responses, self.session_ids, self.data_idx = self.format_data()
+        self.memory_tokens = self.tokenizer.encode(''.join(
             [MEM_TOKEN.format(i) for i in range(memory_length)]))[:-1]
 
     def load_data(self, path):
@@ -45,13 +47,13 @@ class MscDataset(Dataset):
             for session in row['previous_dialogs']:
                 # session: {'personas': list, 'dialog': list}
                 session_history = [
-                    f"[Speaker {u % 2 + 1}]: {dialog['text']}"
+                    f"[Speaker {u % 2 + 1}]: {normalize_text(dialog['text'])}"
                     for u, dialog in enumerate(session['dialog'])
                 ]
                 history.append(session_history)
                 num_dialogs.append(len(session_history))
 
-            current_session = [f"[{dialog['id']}]: {dialog['text']}" for dialog in row['dialog']]
+            current_session = [f"[{dialog['id']}]: {normalize_text(dialog['text'])}" for dialog in row['dialog']]
             history.append(current_session)  # list(list(str))
             num_dialogs.append(len(current_session))
 
@@ -91,12 +93,25 @@ class MscDataset(Dataset):
                         response = response[:self.tokenizer.model_max_length - 1]
                         responses.append(response)
                     session_ids.append(sess_id)
-        return histories, queries, responses, session_ids
+
+        if self.target_session is not None:
+            data_idx = []
+            for i, sid in enumerate(session_ids):
+                if sid + 1 == self.target_session:
+                    data_idx.append(i)
+        else:
+            data_idx = None
+
+        return histories, queries, responses, session_ids, data_idx
 
     def __len__(self):
+        if self.data_idx is not None:
+            return len(self.data_idx)
         return len(self.queries)
 
     def __getitem__(self, idx):
+        if self.data_idx is not None:
+            idx = self.data_idx[idx]
         history = self.histories[idx]
         query = self.queries[idx]
         response = self.responses[idx]
@@ -133,3 +148,9 @@ class MscDataset(Dataset):
         labels = response + [self.tokenizer.eos_token_id]
 
         return dict(input_ids=input_ids, labels=labels, session_ids=[sess_ids])
+
+
+def normalize_text(text: str):
+    text = text.strip()
+    text = ' '.join(text.split())
+    return text
