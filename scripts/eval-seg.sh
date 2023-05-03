@@ -27,11 +27,11 @@ function evaluate(){
         --eval_accumulation_steps 100 \
         --report_to 'wandb' \
         --save_strategy 'steps' \
-        --per_device_eval_batch_size 32 \
+        --per_device_eval_batch_size 64 \
         --test_max_session 5 \
         --use_lora --bf16 \
         --test_only \
-        --load_peft_checkpoint $ckpt_path \
+        --load_checkpoint $ckpt_path \
         --eval_num_segments $eval_seg \
         --memory_length $len \
         --memory_position left --write_memory_position right \
@@ -45,7 +45,7 @@ memlen=10
 for memgate in none attention; do
     for train_seg in 2 4 8 16; do
         for eval_seg in 2 4 8 16 -1; do
-            evaluate $train_seg $eval_seg outputs/blenderbot3B-RMT-seg$train_seg-mem_rleft_wright_${memlen}_$memgate $memlen $memgate
+            WANDB__SERVICE_WAIT=300 evaluate $train_seg $eval_seg outputs/blenderbot3B-RMT-seg$train_seg-mem_rleft_wright_${memlen}_$memgate/checkpoint-1000/pytorch_model.bin $memlen $memgate
         done
     done
 done
