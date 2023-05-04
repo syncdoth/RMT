@@ -75,13 +75,13 @@ means that with 6 segments (737 tokens), the model always has the answer in
 its input history.
 
 
-| Train \ Eval   | session 5 | remember task |
-|----------------|-----------|---------------|
-| MSC 400M (128) |  14.004   | 16.077        |
-| RMT 1          |  13.863   | 15.996        |
-| RMT 2          |  13.683   | 15.945        |
-| RMT 4          |  13.573   | 15.744        |
-| RMT 8          |  13.567   | 15.721        |
+| Effective Input Ctx | Model          | session 5 | remember task |
+|---------------------|----------------|-----------|---------------|
+|       128           | MSC 400M (128) |  14.004   | 16.077        |
+|       123           | RMT 1          |  13.863   | 15.996        |
+|       246           | RMT 2          |  13.683   | 15.945        |
+|       492           | RMT 4          |  13.573   | 15.744        |
+|       984           | RMT 8          |  13.567   | 15.721        |
 
 * Other Automatic
 
