@@ -91,9 +91,9 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
                                    **kwargs)
 
         # seq_len too long; recurrent encoder forward
-        input_tensor = input_ids if input_ids is not None else inputs_embeds
-        input_tensor, memory_tensor = self.split_memory(input_tensor, self.config.memory_position,
-                                                        self.config.memory_length)
+        assert input_ids is not None  # now, input_tensor is always input_ids
+        input_tensor, memory_ids = self.split_memory(input_ids, self.config.memory_position,
+                                                     self.config.memory_length)
         input_segments = torch.split(input_tensor,
                                      self.config.max_position_embeddings -
                                      self.config.memory_length,
@@ -110,7 +110,7 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
         for i, segment in enumerate(input_segments):
             # for each segment, recurrently pass encoder
             segment_embeds, memory_embeds = self.append_memory(segment,
-                                                               memory_tensor,
+                                                               memory_ids,
                                                                prev_memory=prev_memory)
             attention_mask_seg = None
             if attention_mask is not None:
@@ -125,8 +125,8 @@ class RMTForSeq2SeqLM(BlenderbotForConditionalGeneration):
             _, new_memory_embeds = self.split_memory(last_hidden_state,
                                                      self.config.write_memory_position,
                                                      self.config.memory_length)
-            memory_tensor = new_memory_embeds
-            prev_memory = memory_embeds
+            memory_tensor = self.memory_proj(new_memory_embeds)
+            prev_memory = memory_tensor
             # TODO: use .detach() here well for Truncated BPTT.
 
         if return_encoder_outputs_only:
