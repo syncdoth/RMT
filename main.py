@@ -204,7 +204,7 @@ def main():
     if not args.test_only:
         trainer.train()
         # model.state_dict = old_state_dict
-        model.save_pretrained(f"{rmt_train_args.output_dir}")
+        # model.save_pretrained(f"{rmt_train_args.output_dir}")
     trainer.evaluate(test_dataset, metric_key_prefix="test")
     wandb.finish()
 
