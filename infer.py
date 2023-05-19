@@ -38,6 +38,8 @@ class ExperimentArgs:
 
     task: str = 'default'
 
+    sample_idx : bool  = False
+
 
 @torch.inference_mode()
 def infer_testset(model, tokenizer, test_dataloader, generate_kwargs, device, fout):
@@ -64,6 +66,7 @@ def infer_testset(model, tokenizer, test_dataloader, generate_kwargs, device, fo
             i = i.replace(tokenizer.pad_token, '')
             p = p.replace(tokenizer.pad_token, '')
             t = t.replace(tokenizer.pad_token, '')
+            t = t.replace(tokenizer.eos_token, '')
             line = {'input': i, 'pred': p, 'target': t, 'session': s}
             json.dump(line, fout)
             fout.write('\n')
@@ -146,7 +149,19 @@ def main():
         target_session=args.test_target_session,
         task=args.task,
     )
+    if args.sample_idx:
+        # QUICK SAVE OF INDICES FOR HUMAN EVAL
+        import random
+        idx = random.sample(range(len(test_dataset)), 100)
+        with open(f'generated/final/human_eval_session{args.test_target_session}_idx.txt', 'w') as f:
+            for i in idx:
+                f.write(str(i) + '\n')
+            exit()
+    with open(f'generated/final/human_eval_session{args.test_target_session}_idx.txt', 'r') as f:
+        indices = [int(x.strip()) for x in f.readlines()]
+
     test_dataloader = DataLoader(test_dataset, batch_size=rmt_train_args.per_device_eval_batch_size, shuffle=False,
+                                 sampler=indices,
                                  collate_fn=DataCollatorForSeq2Seq(tokenizer))
 
     generate_kwargs = dict(
