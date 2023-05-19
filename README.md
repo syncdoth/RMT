@@ -1,15 +1,30 @@
+## Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+Of course, managing the environment with conda is always encouraged. Notice that
+the code utilizes `8-bit` quantization and lora, which requires at least Ampere
+cuda-enabled GPU. (RTX 30xx and newer) The environment has been tested with
+cuda-11.7 with cudnn-[7|8].x.
+
 ## Train
 
 ```bash
-GPU_ID=1  # gpu id to use
-MEMORY_GATE=none  # choose from ['none', 'attention', 'residual']
-N_SEGMENTS=4   # number of segments to train RMT model with. N_SEGMENT=4 means the effective
-# input context size for the encoder is
-#        (max_input_length - memory_length) * N_SEGMENT - 1,
-# where memory_length is number of memory tokens used and -1 at the end is for EOS.
-
-sh train.sh $GPU_ID $MEMORY_GATE $N_SEGMENTS
+# big model; for detail, look at train.sh
+sh train.sh $GPU_ids $memory_gate $num_seg left $train_bs $grad_check $num_seg 5
 ```
+
+## Experiments
+
+Take a look at scripts in `scripts/`.
+
+* `baseline_eval.sh` - evaluates the baseline (BST 2.7B) model zero-shot.
+* `eval-generate.sh` - generates response for the target test set session with `infer.py`
+* `eval-seg*.sh` - evaluate the model with different segments during evaluation. `-small` is for 400M model.
+* `experiment-seg*.sh` - train the model with different segments. `-small` for 400M model.
+* `train-baseline.sh` - trains the baseline model (BST 2.7B / BST 400M) on MSC dataset.
 
 ## Results
 

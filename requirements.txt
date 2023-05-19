@@ -1,0 +1,10 @@
+tqdm
+pandas
+numpy
+nltk
+wandb
+torch
+transformers
+git+https://github.com/huggingface/peft
+loralib
+bitsandbytes
