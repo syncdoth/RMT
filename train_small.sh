@@ -7,6 +7,8 @@ train_bs=$5
 grad_check=$6
 eval_seg=$7
 t_session=$8
+ckpt=$9
+task=${10}
 ################
 # compute number of gpus
 arrIDs=(${ids//,/ })
@@ -22,33 +24,34 @@ else
 fi
 
 # hyperparameters defined here
-lr=1e-6
+lr=1e-7
 max_steps=2000
 memory_length=5
 memory_position=left
 
-run_name=blenderbot3B-RMT-seg$num_seg-mem_r${memory_position}_w${write_memory_position}_${memory_length}_$memory_gate-textnormv3-proj-scaledv2
+run_name=blenderbot-400M-RMT-seg$num_seg-mem_r${memory_position}_w${write_memory_position}_${memory_length}_$memory_gate-continual-$task
 
 script="$launcher main.py \
-    --model_name facebook/blenderbot-3B \
+    --model_name facebook/blenderbot-400M-distill \
     --wandb_run_name $run_name \
     --learning_rate $lr \
     --warmup_steps 0 \
-    --weight_decay 0 \
+    --weight_decay 0.01 \
     --eval_steps 500 \
     --eval_accumulation_steps 100 \
     --max_steps $max_steps \
     --num_train_epochs 5 \
     --report_to 'wandb' \
-    --output_dir outputs/big/$run_name \
+    --output_dir outputs/small/$run_name \
     --logging_steps 10 \
     --save_strategy 'steps' \
     --save_steps 500 \
-    --save_total_limit 3 \
+    --save_total_limit 1 \
     --load_best_model_at_end True \
+    --load_checkpoint $ckpt \
     --per_device_train_batch_size $train_bs \
-    --per_device_eval_batch_size 8 \
-    --gradient_accumulation_steps 8 \
+    --per_device_eval_batch_size 32 \
+    --gradient_accumulation_steps 1 \
     --gradient_checkpointing $grad_check \
     --num_segments $num_seg \
     --eval_num_segments $eval_seg \
@@ -58,7 +61,7 @@ script="$launcher main.py \
     --test_target_session $t_session \
     --memory_length $memory_length \
     --memory_position $memory_position --write_memory_position $write_memory_position \
-    --memory_gate_type $memory_gate --task remember_sess1 \
-    --use_lora --bf16"
+    --memory_gate_type $memory_gate --task $task \
+    --bf16"
 
 eval $script

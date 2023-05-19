@@ -15,17 +15,18 @@ else
 fi
 
 # hyperparameters defined here
-lr=1e-5
+lr=1e-6
 max_steps=1000
 
 # define script
 script="$launcher main.py \
     --model_name facebook/blenderbot-3B \
-    --wandb_run_name blenderbot3B-msc \
+    --wandb_run_name blenderbot3B-msc-textnorm \
     --learning_rate $lr \
     --warmup_steps 0 \
     --weight_decay 0 \
-    --eval_steps 100 \
+    --evaluation_strategy no \
+    --eval_steps 500 \
     --eval_accumulation_steps 100 \
     --max_steps $max_steps \
     --num_train_epochs 5 \
@@ -33,9 +34,9 @@ script="$launcher main.py \
     --output_dir outputs/blenderbot3B-msc \
     --logging_steps 10 \
     --save_strategy 'steps' \
-    --save_steps 100 \
+    --save_steps $max_steps \
     --save_total_limit 3 \
-    --load_best_model_at_end True \
+    --load_best_model_at_end False \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 32 \
     --gradient_accumulation_steps 1 \

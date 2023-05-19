@@ -1,18 +1,18 @@
 ids=$1
 
-mem=attention
+# mem=attention
+wpos=left
 
-for mem in attention none; do
-    for seg in 2 4 8 16; do
-        if [[ $seg = 16 ]]; then
-            bs=16
-            g_check=True
-        else
-            bs=32
-            g_check=False
-        fi
-        for wpos in right; do
-            sh train.sh $ids $mem $seg $wpos $bs $g_check
-        done
-    done
+
+for mem in residual; do
+for seg in 8; do
+    if (( $seg > 6 )); then
+        bs=4
+        g_check=True
+    else
+        bs=4
+        g_check=False
+    fi
+    WANDB__SERVICE_WAIT=300 sh train.sh $ids $mem $seg $wpos $bs $g_check $seg 5
+done
 done
