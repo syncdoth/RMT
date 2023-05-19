@@ -31,6 +31,8 @@ class MscDataset(Dataset):
         self.target_session = target_session
         self.identity = None  # TODO
         self.sep_token = '</s> <s>'
+        if task not in ('default', 'remember_sess1', 'prev_sess'):
+            raise ValueError(f'task {task} not recognized.')
         self.task = task
 
         self.data, self.data_stats = self.load_data(data_path)
@@ -103,14 +105,40 @@ class MscDataset(Dataset):
                         responses.append(response)
                     session_ids.append(sess_id)
             if self.task == 'remember_sess1':
-                # in this task, after all is finished,
-                idx = random.randint(0, 5)
-                idx = idx * 2  # NOTE: the new question should be from Speaker 1, so even idx
-                utt_id = current_chat_idx + idx
+                # in this task, after all is finished, we ask a question from sess1
+                sess1_end = 1
+                for i, si in enumerate(session_ids[current_chat_idx:]):
+                    if si > 0:
+                        sess1_end = i
+                        break
+
+                question_idx = -1
+                for i, q in enumerate(queries[current_chat_idx: sess1_end]):
+                    if '?' in q and i % 2 == 0:  # question from speaker 1
+                        question_idx = i
+                        break
+                if question_idx == -1:  # not found
+                    question_idx = random.randint(0, sess1_end // 2)
+                    # NOTE: the new question should be from Speaker 1, so even idx
+                    question_idx = question_idx * 2
+                utt_id = current_chat_idx + question_idx
                 histories.append(histories[-1])
                 queries.append(queries[utt_id])
                 responses.append(responses[utt_id])
                 session_ids.append(100)  # unique: session_id 100 is for remember task.
+            elif self.task == 'prev_sess':
+                # in this task, after all is finished, we ask a question from sess1
+                sess_end = -1
+                for i, si in enumerate(session_ids[current_chat_idx:]):
+                    if si == self.max_session - 1:
+                        sess_end = i - 1
+                        break
+                assert sess_end != -1
+                utt_id = current_chat_idx + sess_end
+                histories.append(histories[-1])
+                queries.append(queries[utt_id])
+                responses.append(responses[utt_id])
+                session_ids.append(200)  # unique: session_id 200 is for remember task.
 
         if self.target_session is not None:
             data_idx = []
@@ -118,6 +146,8 @@ class MscDataset(Dataset):
                 if sid + 1 == self.target_session:
                     data_idx.append(i)
                 elif self.task == 'remember_sess1' and sid == 100:
+                    data_idx.append(i)
+                elif self.task == 'prev_sess' and sid == 200:
                     data_idx.append(i)
         else:
             data_idx = None
